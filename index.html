@@ -718,6 +718,347 @@ function generarMenuLocal(estilo, presupuesto, personas) {
   return m;
 }
 
+// ── Sistema de preferencias y restricciones ──
+
+var PROHIBIDOS_MAP = {
+  vegetariano:['pollo','pechuga','carne picada','carne','jamon','jamon iberico','chorizo','morcillo','ternera','merluza','salmon','atun','sardinas','bacalao','cordero','cochinillo','pavo','wagyu','solomillo','secreto iberico','carrilleras','foie','chuleton','buey','ossobuco','bresaola','prosciutto','bacon','chashu','pato','langostinos','almejas','mejillones','camarones','gambas','mariscos','costilla','bistecca','bogavante','vieiras','cabrito'],
+  vegano:['pollo','pechuga','carne picada','carne','jamon','chorizo','morcillo','ternera','merluza','salmon','atun','sardinas','bacalao','cordero','cochinillo','pavo','wagyu','solomillo','secreto iberico','carrilleras','foie','chuleton','buey','ossobuco','bresaola','prosciutto','bacon','chashu','pato','langostinos','almejas','mejillones','camarones','gambas','mariscos','costilla','bistecca','bogavante','vieiras','cabrito','huevo','huevos','leche','nata','queso','yogur','mantequilla','parmesano','mozzarella','ricotta','burrata','mascarpone','crema','yemas','helado'],
+  sin_cerdo:['cerdo','jamon','jamon iberico','chorizo','morcillo','bacon','panceta','lomo','secreto iberico','carrilleras','cochinillo','chashu','prosciutto','salami','bresaola'],
+  sin_gluten:['pasta','harina','fideos','espaguetis','penne','lasana','gnocchi','pan','croquetas','nachos','tostadas','noodles','pan rallado','savoiardi','obleas','tagliatelle','macarrones'],
+  sin_lactosa:['leche','nata','queso','yogur','mantequilla','parmesano','mozzarella','ricotta','burrata','mascarpone','crema','yemas'],
+  sin_marisco:['gambas','almejas','mejillones','camarones','langostinos','vieiras','bogavante','mariscos','ikura','tobiko'],
+  sin_pescado:['merluza','salmon','atun','sardinas','bacalao','dorada','lubina','rodaballo','bacalao negro'],
+};
+
+var ALT_POOL = {
+  vegetariano:{
+    primeros:[
+      {n:'Crema de calabaza',i:['calabaza','cebolla','patata','aceite']},
+      {n:'Gazpacho andaluz',i:['tomate','pepino','pimiento','ajo']},
+      {n:'Ensalada mixta de temporada',i:['lechuga','tomate','zanahoria','aceitunas']},
+      {n:'Potaje de garbanzos con espinacas',i:['garbanzos','espinacas','ajo','pimenton']},
+      {n:'Sopa de verduras casera',i:['zanahoria','apio','puerro','patata']},
+      {n:'Crema de puerros',i:['puerros','patata','cebolla','aceite']},
+      {n:'Ensalada de garbanzos con verduras',i:['garbanzos','tomate','pepino','pimiento']},
+    ],
+    segundos:[
+      {n:'Tortilla de patatas',i:['huevos','patatas','cebolla']},
+      {n:'Revuelto de setas y espinacas',i:['setas','espinacas','huevos','ajo']},
+      {n:'Pisto manchego con huevo',i:['calabacin','pimiento','tomate','huevo']},
+      {n:'Berenjenas rellenas de verduras',i:['berenjena','tomate','pimiento','queso']},
+      {n:'Arroz con verduras salteadas',i:['arroz','pimiento','zanahoria','guisantes']},
+      {n:'Patatas con pisto de verduras',i:['patatas','calabacin','pimiento','tomate']},
+      {n:'Lentejas estofadas con verduras',i:['lentejas','zanahoria','pimiento','cebolla']},
+    ],
+    postres:[
+      {n:'Yogur con miel',i:['yogur','miel']},
+      {n:'Fruta de temporada',i:['manzana']},
+      {n:'Flan casero',i:['huevos','leche','azucar','caramelo']},
+    ],
+  },
+  vegano:{
+    primeros:[
+      {n:'Gazpacho de tomates',i:['tomate','pepino','pimiento','ajo']},
+      {n:'Crema de calabaza sin lacteos',i:['calabaza','cebolla','patata','aceite']},
+      {n:'Ensalada de legumbres y verduras',i:['garbanzos','lechuga','tomate','pepino']},
+      {n:'Sopa de verduras casera',i:['zanahoria','apio','puerro','patata']},
+      {n:'Hummus con crudites',i:['garbanzos','tahini','limon','zanahoria']},
+      {n:'Tabulé de quinoa',i:['quinoa','pepino','tomate','perejil']},
+      {n:'Ensalada de aguacate y tomate',i:['aguacate','tomate','cebolla','limon']},
+    ],
+    segundos:[
+      {n:'Tofu salteado con verduras y soja',i:['tofu','brocoli','zanahoria','soja']},
+      {n:'Lentejas estofadas con verduras',i:['lentejas','zanahoria','pimiento','cebolla']},
+      {n:'Arroz frito con verduras',i:['arroz','zanahoria','guisantes','soja']},
+      {n:'Curry de garbanzos con arroz',i:['garbanzos','tomate','curry','arroz']},
+      {n:'Pasta con tomate y verduras',i:['espaguetis','tomate','ajo','albahaca']},
+      {n:'Bowl de quinoa con verduras asadas',i:['quinoa','brocoli','pimiento','aguacate']},
+      {n:'Patatas al horno con verduras',i:['patatas','pimiento','cebolla','ajo']},
+    ],
+    postres:[
+      {n:'Fruta de temporada',i:['manzana']},
+      {n:'Sorbete de mango casero',i:['mango','azucar','lima']},
+      {n:'Compota de manzana y canela',i:['manzana','canela','azucar']},
+    ],
+  },
+  sin_cerdo:{
+    segundos:[
+      {n:'Pollo asado al horno',i:['pollo','patatas','cebolla','pimiento']},
+      {n:'Merluza a la plancha',i:['merluza','limon','aceite de oliva']},
+      {n:'Tortilla de patatas',i:['huevos','patatas','cebolla']},
+      {n:'Revuelto de setas y verduras',i:['setas','huevos','ajo','perejil']},
+      {n:'Albondigas de ternera en salsa',i:['ternera picada','tomate','pan rallado','huevo']},
+      {n:'Pollo al ajillo',i:['pollo','ajo','vino blanco','aceite']},
+    ],
+  },
+  sin_gluten:{
+    primeros:[
+      {n:'Crema de verduras',i:['calabacin','zanahoria','patata','cebolla']},
+      {n:'Ensalada mixta',i:['lechuga','tomate','maiz','zanahoria']},
+      {n:'Gazpacho',i:['tomate','pepino','pimiento','ajo']},
+      {n:'Potaje de garbanzos',i:['garbanzos','espinacas','ajo','pimenton']},
+    ],
+    segundos:[
+      {n:'Pollo a la plancha con ensalada',i:['pollo','lechuga','tomate','aceite']},
+      {n:'Merluza al horno con patatas',i:['merluza','patatas','limon','perejil']},
+      {n:'Tortilla de patatas',i:['huevos','patatas','cebolla']},
+      {n:'Arroz con pollo',i:['arroz','pollo','judias verdes','pimiento']},
+      {n:'Estofado de ternera con patatas',i:['ternera','patatas','zanahoria','guisantes']},
+      {n:'Salmon a la plancha con verduras',i:['salmon','espinacas','limon','aceite']},
+    ],
+  },
+  sin_lactosa:{
+    primeros:[
+      {n:'Gazpacho',i:['tomate','pepino','pimiento','ajo']},
+      {n:'Ensalada mixta',i:['lechuga','tomate','maiz','zanahoria']},
+      {n:'Sopa de verduras',i:['zanahoria','apio','puerro','fideos']},
+      {n:'Lentejas con verduras',i:['lentejas','zanahoria','pimiento','cebolla']},
+    ],
+    segundos:[
+      {n:'Pollo a la plancha',i:['pollo','limon','ajo','aceite']},
+      {n:'Salmon al horno con verduras',i:['salmon','patatas','espinacas','limon']},
+      {n:'Arroz con pollo',i:['arroz','pollo','pimiento','caldo']},
+      {n:'Revuelto de verduras',i:['huevos','pimiento','cebolla','ajo']},
+    ],
+    postres:[
+      {n:'Fruta de temporada',i:['manzana']},
+      {n:'Sorbete de limon',i:['limon','azucar','agua']},
+    ],
+  },
+  sin_marisco:{
+    segundos:[
+      {n:'Pollo asado con patatas',i:['pollo','patatas','cebolla','pimiento']},
+      {n:'Tortilla de patatas',i:['huevos','patatas','cebolla']},
+      {n:'Estofado de ternera',i:['ternera','patatas','zanahoria','guisantes']},
+      {n:'Pasta con tomate',i:['espaguetis','tomate','albahaca','ajo']},
+    ],
+  },
+  sin_pescado:{
+    segundos:[
+      {n:'Pollo a la plancha',i:['pollo','limon','ajo','aceite']},
+      {n:'Tortilla de patatas',i:['huevos','patatas','cebolla']},
+      {n:'Arroz con pollo',i:['arroz','pollo','pimiento','caldo']},
+      {n:'Albondigas en salsa de tomate',i:['carne picada','tomate','pan rallado','huevo']},
+    ],
+  },
+};
+
+var TIPO_POOL = {
+  'sopas y cremas':{primeros:[
+    {n:'Crema de calabaza',i:['calabaza','cebolla','patata','nata']},
+    {n:'Sopa de fideos con verduras',i:['fideos','zanahoria','patata','apio']},
+    {n:'Crema de puerros',i:['puerros','patata','cebolla','nata']},
+    {n:'Sopa de pollo casera',i:['pollo','fideos','zanahoria','apio']},
+    {n:'Crema de champinones',i:['champinones','cebolla','nata','ajo']},
+    {n:'Sopa minestrone',i:['judias','zanahoria','apio','tomate']},
+    {n:'Crema de esparragos',i:['esparragos','patata','cebolla','nata']},
+  ]},
+  'platos de cuchara':{primeros:[
+    {n:'Lentejas con verduras',i:['lentejas','zanahoria','patata','pimiento']},
+    {n:'Potaje de garbanzos con espinacas',i:['garbanzos','espinacas','ajo','pimenton']},
+    {n:'Judias pintas estofadas',i:['judias pintas','chorizo','patata','cebolla']},
+    {n:'Sopa castellana',i:['pan','ajo','pimenton','huevo']},
+    {n:'Alubias con verduras',i:['alubias','zanahoria','puerro','laurel']},
+  ]},
+  'ensaladas':{primeros:[
+    {n:'Ensalada mixta completa',i:['lechuga','tomate','zanahoria','aceitunas']},
+    {n:'Ensalada de garbanzos y verduras',i:['garbanzos','tomate','pepino','pimiento']},
+    {n:'Ensalada caprese',i:['tomate','mozzarella','albahaca','aceite']},
+    {n:'Ensalada de quinoa con verduras',i:['quinoa','pimiento','pepino','tomate']},
+    {n:'Ensaladilla rusa',i:['patata','zanahoria','atun','mayonesa']},
+    {n:'Ensalada templada de espinacas',i:['espinacas','champinones','huevo','vinagreta']},
+    {n:'Ensalada de pasta fria',i:['pasta','tomate','pepino','atun']},
+  ]},
+  'pastas':{segundos:[
+    {n:'Espaguetis a la carbonara',i:['espaguetis','bacon','huevo','parmesano']},
+    {n:'Pasta con pesto y tomate cherry',i:['pasta','pesto','tomate cherry','parmesano']},
+    {n:'Macarrones con tomate y carne',i:['macarrones','carne picada','tomate','cebolla']},
+    {n:'Penne con verduras salteadas',i:['penne','calabacin','tomate','pimiento']},
+    {n:'Espaguetis aglio e olio',i:['espaguetis','ajo','aceite','guindilla']},
+    {n:'Lasana de carne',i:['placas lasana','carne picada','bechamel','tomate']},
+    {n:'Pasta al pomodoro fresco',i:['espaguetis','tomate','albahaca','ajo']},
+  ]},
+  'arroces y paellas':{segundos:[
+    {n:'Arroz con pollo y verduras',i:['arroz','pollo','judias verdes','pimiento']},
+    {n:'Arroz caldoso de verduras',i:['arroz','zanahoria','judias','pimiento']},
+    {n:'Paella de verduras',i:['arroz','pimiento','alcachofas','judias']},
+    {n:'Risotto de champinones',i:['arroz arborio','champinones','cebolla','parmesano']},
+    {n:'Arroz negro con sepia',i:['arroz','sepia','tinta de calamar','pimiento']},
+    {n:'Arroz con gambas y verduras',i:['arroz','gambas','guisantes','pimiento']},
+  ]},
+  'a la plancha':{segundos:[
+    {n:'Pechuga de pollo a la plancha',i:['pechuga','limon','ajo','aceite']},
+    {n:'Salmon a la plancha con limon',i:['salmon','limon','eneldo','aceite']},
+    {n:'Filete de ternera a la plancha',i:['filete de ternera','tomate','pimiento','aceite']},
+    {n:'Merluza a la plancha',i:['merluza','limon','perejil','aceite']},
+    {n:'Sardinas a la plancha',i:['sardinas','sal','limon','aceite']},
+    {n:'Secreto iberico a la plancha',i:['secreto iberico','sal','romero','aceite']},
+    {n:'Verduras a la plancha con huevo',i:['pimiento','calabacin','cebolla','huevo']},
+  ]},
+  'estofados y cocidos':{segundos:[
+    {n:'Estofado de ternera con patatas',i:['ternera','patatas','zanahoria','guisantes']},
+    {n:'Pollo guisado con verduras',i:['pollo','zanahoria','patata','cebolla']},
+    {n:'Albondigas en salsa de tomate',i:['carne picada','tomate','pan rallado','huevo']},
+    {n:'Carrilleras al vino tinto',i:['carrilleras','vino tinto','zanahoria','cebolla']},
+    {n:'Cocido completo',i:['garbanzos','morcillo','chorizo','repollo']},
+    {n:'Lentejas estofadas con chorizo',i:['lentejas','zanahoria','pimiento','chorizo']},
+  ]},
+  'al horno':{segundos:[
+    {n:'Pollo asado al horno',i:['pollo','patatas','cebolla','pimiento']},
+    {n:'Merluza al horno con patatas',i:['merluza','patatas','limon','perejil']},
+    {n:'Lasana de carne',i:['carne picada','placas lasana','bechamel','tomate']},
+    {n:'Berenjena rellena al horno',i:['berenjena','carne picada','tomate','queso']},
+    {n:'Pizza casera',i:['harina','tomate','mozzarella','oregano']},
+    {n:'Salmon al horno con verduras',i:['salmon','patatas','espinacas','limon']},
+  ]},
+  'salteados rapidos':{segundos:[
+    {n:'Wok de verduras y pollo',i:['pollo','brocoli','zanahoria','soja']},
+    {n:'Revuelto de setas y gambas',i:['setas','gambas','huevos','ajo']},
+    {n:'Salteado de ternera con verduras',i:['ternera','pimiento','cebolla','soja']},
+    {n:'Noodles salteados con pollo',i:['noodles','pollo','zanahoria','soja']},
+    {n:'Arroz frito con verduras y huevo',i:['arroz','huevo','zanahoria','soja']},
+  ]},
+  'platos frios y gazpachos':{primeros:[
+    {n:'Gazpacho andaluz',i:['tomate','pepino','pimiento','ajo']},
+    {n:'Salmorejo cordobes',i:['tomate','pan','ajo','aceite']},
+    {n:'Ajoblanco malagueno',i:['almendras','pan','ajo','aceite']},
+    {n:'Vichyssoise',i:['puerros','patata','cebolla','nata']},
+    {n:'Ensalada caprese',i:['tomate','mozzarella','albahaca','aceite']},
+  ]},
+  'meal prep fitness':{segundos:[
+    {n:'Pechuga con arroz integral y brocoli',i:['pechuga','arroz integral','brocoli','aceite']},
+    {n:'Salmon al horno con quinoa',i:['salmon','quinoa','espinacas','limon']},
+    {n:'Bowl de pollo y garbanzos',i:['pollo','garbanzos','espinacas','aguacate']},
+    {n:'Tortilla de claras con verduras',i:['claras','pimiento','cebolla','espinacas']},
+    {n:'Ternera a la plancha con brocoli',i:['ternera','brocoli','ajo','aceite']},
+  ]},
+  'sin horno ni fuegos':{
+    primeros:[
+      {n:'Gazpacho',i:['tomate','pepino','pimiento','ajo']},
+      {n:'Ensalada completa',i:['lechuga','tomate','zanahoria','aceitunas']},
+      {n:'Hummus con crudites',i:['garbanzos','tahini','limon','zanahoria']},
+    ],
+    segundos:[
+      {n:'Ensalada de atun con pasta fria',i:['pasta','atun','tomate','pepino']},
+      {n:'Wrap de pollo y verduras',i:['tortilla de trigo','pollo','lechuga','tomate']},
+      {n:'Ensalada de garbanzos y aguacate',i:['garbanzos','aguacate','tomate','pepino']},
+      {n:'Poke bowl de atun',i:['arroz','atun','aguacate','soja']},
+    ],
+  },
+  'recetas de 3 ingredientes':{
+    primeros:[
+      {n:'Tomate con aceite y sal',i:['tomate','aceite','sal']},
+      {n:'Aguacate con limon y sal',i:['aguacate','limon','sal']},
+    ],
+    segundos:[
+      {n:'Tortilla francesa',i:['huevos','sal','aceite']},
+      {n:'Salmon con limon y sal',i:['salmon','limon','sal']},
+      {n:'Pollo a la plancha con ajo',i:['pollo','ajo','aceite']},
+    ],
+  },
+};
+
+function detectarRestricciones(data) {
+  var r = [];
+  var txt = [data.preferencias||'',data.alergias||'',data.ingredientes_evitar||''].join(' ').toLowerCase();
+  if (/vegano|vegana\b/.test(txt)) r.push('vegano');
+  else if (/vegetariano|vegetariana|sin carne\b/.test(txt)) r.push('vegetariano');
+  if (/sin cerdo|halal|kosher/.test(txt)) r.push('sin_cerdo');
+  if (/sin gluten|celiaco|celiaca/.test(txt)) r.push('sin_gluten');
+  if (/sin lactosa|intolerante.*lactosa/.test(txt)) r.push('sin_lactosa');
+  if (/sin marisco|alergia.*marisco/.test(txt)) r.push('sin_marisco');
+  if (/sin pescado|alergia.*pescado/.test(txt)) r.push('sin_pescado');
+  return r;
+}
+
+function getIngredientesEvitar(texto) {
+  if (!texto) return [];
+  return texto.toLowerCase().split(/[,;\s]+/).map(function(s){return s.trim();}).filter(function(s){return s.length>2;});
+}
+
+function platoTieneProhibido(plato, prohibidos) {
+  if (!prohibidos.length) return false;
+  var txt = (plato.nombre+' '+plato.ingredientes_principales.join(' ')).toLowerCase();
+  return prohibidos.some(function(p){return txt.indexOf(p)!==-1;});
+}
+
+function getAlternativaPool(pool, prohibidos, usados) {
+  var disp = pool.filter(function(p){
+    return !platoTieneProhibido({nombre:p.n,ingredientes_principales:p.i},prohibidos) && usados.indexOf(p.n)===-1;
+  });
+  if (!disp.length) disp = pool.filter(function(p){
+    return !platoTieneProhibido({nombre:p.n,ingredientes_principales:p.i},prohibidos);
+  });
+  if (!disp.length) return null;
+  return disp[Math.floor(Math.random()*disp.length)];
+}
+
+function toPlato(alt){return {nombre:alt.n,ingredientes_principales:alt.i};}
+
+function aplicarPreferencias(menu, data) {
+  var restricciones = detectarRestricciones(data);
+  var evitar = getIngredientesEvitar(data.ingredientes_evitar);
+  var tipos = (data.tipo_platos && data.tipo_platos !== 'variado') ? data.tipo_platos.split(', ') : [];
+
+  var prohibidos = evitar.slice();
+  restricciones.forEach(function(r){
+    (PROHIBIDOS_MAP[r]||[]).forEach(function(p){if(prohibidos.indexOf(p)===-1) prohibidos.push(p);});
+  });
+
+  if (!prohibidos.length && !tipos.length) return;
+
+  var partes = [];
+  if (restricciones.length) partes.push('Adaptado para: '+restricciones.map(function(r){return r.replace(/_/g,' ');}).join(', '));
+  if (evitar.length) partes.push('Sin: '+evitar.join(', '));
+  if (tipos.length) partes.push('Tipo preferido: '+tipos.join(', '));
+  menu.aviso_preferencias = partes.join(' &middot; ');
+
+  var poolRestr = null;
+  if (restricciones.indexOf('vegano')!==-1) poolRestr = ALT_POOL.vegano;
+  else if (restricciones.indexOf('vegetariano')!==-1) poolRestr = ALT_POOL.vegetariano;
+
+  var tiposPrimeros = tipos.filter(function(t){return TIPO_POOL[t]&&TIPO_POOL[t].primeros;});
+  var tiposSegundos = tipos.filter(function(t){return TIPO_POOL[t]&&TIPO_POOL[t].segundos;});
+  var usadosP=[], usadosS=[], usadosO=[];
+
+  for (var i=0;i<menu.dias.length;i++) {
+    var dia = menu.dias[i];
+
+    // Primer plato
+    if (tiposPrimeros.length) {
+      var tipo = tiposPrimeros[i%tiposPrimeros.length];
+      var pool = TIPO_POOL[tipo].primeros.filter(function(p){return !platoTieneProhibido({nombre:p.n,ingredientes_principales:p.i},prohibidos);});
+      if (pool.length){var a=pool[i%pool.length]; dia.primer_plato=toPlato(a); usadosP.push(a.n);}
+    } else if (prohibidos.length && platoTieneProhibido(dia.primer_plato,prohibidos)) {
+      var pool = (poolRestr&&poolRestr.primeros)||ALT_POOL.vegetariano.primeros;
+      for (var ri=0;ri<restricciones.length;ri++){var rp=ALT_POOL[restricciones[ri]];if(rp&&rp.primeros){pool=rp.primeros;break;}}
+      var a=getAlternativaPool(pool,prohibidos,usadosP);
+      if(a){dia.primer_plato=toPlato(a);usadosP.push(a.n);}
+    }
+
+    // Segundo plato
+    if (tiposSegundos.length) {
+      var tipo = tiposSegundos[i%tiposSegundos.length];
+      var pool = TIPO_POOL[tipo].segundos.filter(function(p){return !platoTieneProhibido({nombre:p.n,ingredientes_principales:p.i},prohibidos);});
+      if (pool.length){var a=pool[i%pool.length]; dia.segundo_plato=toPlato(a); usadosS.push(a.n);}
+    } else if (prohibidos.length && platoTieneProhibido(dia.segundo_plato,prohibidos)) {
+      var pool = (poolRestr&&poolRestr.segundos)||null;
+      if(!pool){for(var ri=0;ri<restricciones.length;ri++){var rp=ALT_POOL[restricciones[ri]];if(rp&&rp.segundos){pool=rp.segundos;break;}}}
+      if(!pool) pool=ALT_POOL.vegetariano.segundos;
+      var a=getAlternativaPool(pool,prohibidos,usadosS);
+      if(a){dia.segundo_plato=toPlato(a);usadosS.push(a.n);}
+    }
+
+    // Postre
+    if (prohibidos.length && platoTieneProhibido(dia.postre,prohibidos)) {
+      var pool = (poolRestr&&poolRestr.postres)||ALT_POOL.vegetariano.postres;
+      for(var ri=0;ri<restricciones.length;ri++){var rp=ALT_POOL[restricciones[ri]];if(rp&&rp.postres){pool=rp.postres;break;}}
+      var a=getAlternativaPool(pool,prohibidos,usadosO);
+      if(a){dia.postre=toPlato(a);usadosO.push(a.n);}
+    }
+  }
+}
+
 // ── Sugerencias dinamicas por estilo y tipo ──
 const sugerenciasPorEstilo = {
     '': ['algo con queso', 'pollo asado', 'arroz caldoso', 'tortilla de patatas', 'ensalada completa', 'lentejas'],
@@ -858,6 +1199,7 @@ document.getElementById('menuForm').addEventListener('submit', async (e) => {
     resultado.innerHTML = '';
 
     const menu = generarMenuLocal(data.estilo_cocina, parseFloat(data.presupuesto), parseInt(data.personas));
+        aplicarPreferencias(menu, data);
         renderMenu(menu, parseFloat(data.presupuesto));
         btn.disabled = false;
         loader.classList.remove('active');
@@ -867,9 +1209,13 @@ function renderMenu(menu, presupuesto) {
     const res = document.getElementById('resultado');
     let html = '';
 
-    // Aviso
+    // Aviso genérico
     if (menu.aviso) {
         html += `<div class="aviso-box">${menu.aviso}</div>`;
+    }
+    // Aviso de preferencias aplicadas
+    if (menu.aviso_preferencias) {
+        html += `<div class="aviso-box" style="border-left-color:#6b8f4a;color:#b5d49a;background:rgba(80,120,60,0.12)">${menu.aviso_preferencias}</div>`;
     }
 
     // Nivel de presupuesto

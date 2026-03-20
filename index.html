@@ -1057,6 +1057,144 @@ function aplicarPreferencias(menu, data) {
       if(a){dia.postre=toPlato(a);usadosO.push(a.n);}
     }
   }
+
+  // Antojos: aplicar al final para respetar restricciones calculadas
+  if (data.antojo_hoy) aplicarAntojos(menu, data.antojo_hoy, prohibidos);
+}
+
+// ── Mapa de antojos → platos concretos ──
+// 'c': curso ('p'=primer_plato, 's'=segundo_plato, 'o'=postre)
+var ANTOJOS_MAP = {
+  // Española
+  'tortilla de patatas':{c:'s',p:{n:'Tortilla de patatas',i:['huevos','patatas','cebolla']}},
+  'tortilla':{c:'s',p:{n:'Tortilla de patatas',i:['huevos','patatas','cebolla']}},
+  'croquetas':{c:'s',p:{n:'Croquetas de jamon caseras',i:['jamon','leche','harina','huevo']}},
+  'cocido madrileno':{c:'p',p:{n:'Cocido madrileno',i:['garbanzos','morcillo','chorizo','repollo']}},
+  'cocido':{c:'p',p:{n:'Cocido madrileno',i:['garbanzos','morcillo','chorizo','repollo']}},
+  'pisto manchego':{c:'s',p:{n:'Pisto manchego con huevo',i:['calabacin','pimiento','tomate','huevo']}},
+  'albondigas en salsa':{c:'s',p:{n:'Albondigas en salsa de tomate',i:['carne picada','tomate','pan rallado','huevo']}},
+  'albondigas':{c:'s',p:{n:'Albondigas en salsa de tomate',i:['carne picada','tomate','pan rallado','huevo']}},
+  'patatas a la riojana':{c:'p',p:{n:'Patatas a la riojana',i:['patatas','chorizo','pimiento choricero','cebolla']}},
+  'huevos rotos':{c:'s',p:{n:'Huevos rotos con jamon',i:['huevos','patatas','jamon']}},
+  'gazpacho':{c:'p',p:{n:'Gazpacho andaluz',i:['tomate','pepino','pimiento','ajo']}},
+  'salmorejo':{c:'p',p:{n:'Salmorejo cordobes',i:['tomate','pan','ajo','aceite']}},
+  'lentejas':{c:'p',p:{n:'Lentejas estofadas con verduras',i:['lentejas','zanahoria','pimiento','cebolla']}},
+  'garbanzos':{c:'p',p:{n:'Potaje de garbanzos con espinacas',i:['garbanzos','espinacas','ajo','pimenton']}},
+  'fabada':{c:'p',p:{n:'Fabada asturiana',i:['fabes','chorizo','morcilla','tocino']}},
+  'paella':{c:'s',p:{n:'Paella mixta',i:['arroz','pollo','gambas','pimiento']}},
+  'arroz con leche':{c:'o',p:{n:'Arroz con leche casero',i:['arroz','leche','azucar','canela']}},
+  'flan casero':{c:'o',p:{n:'Flan casero',i:['huevos','leche','azucar','caramelo']}},
+  'flan':{c:'o',p:{n:'Flan casero',i:['huevos','leche','azucar','caramelo']}},
+  'pulpo a la gallega':{c:'s',p:{n:'Pulpo a la gallega',i:['pulpo','patatas','pimenton','aceite']}},
+  'bacalao al pil-pil':{c:'s',p:{n:'Bacalao al pil-pil',i:['bacalao','ajo','aceite','guindilla']}},
+  'revuelto de setas':{c:'s',p:{n:'Revuelto de setas y gambas',i:['setas','gambas','huevos','ajo']}},
+  'crema de calabaza':{c:'p',p:{n:'Crema de calabaza',i:['calabaza','cebolla','patata','nata']}},
+  'ensalada completa':{c:'p',p:{n:'Ensalada mixta completa',i:['lechuga','tomate','zanahoria','aceitunas']}},
+  'pollo asado':{c:'s',p:{n:'Pollo asado con verduras',i:['pollo','patatas','cebolla','pimiento']}},
+  'arroz caldoso':{c:'s',p:{n:'Arroz caldoso de verduras',i:['arroz','zanahoria','judias','pimiento']}},
+  // Italiana
+  'pasta carbonara':{c:'s',p:{n:'Espaguetis a la carbonara',i:['espaguetis','bacon','huevo','parmesano']}},
+  'carbonara':{c:'s',p:{n:'Espaguetis a la carbonara',i:['espaguetis','bacon','huevo','parmesano']}},
+  'risotto':{c:'s',p:{n:'Risotto de champinones',i:['arroz arborio','champinones','cebolla','parmesano']}},
+  'lasana':{c:'s',p:{n:'Lasana de carne',i:['carne picada','placas lasana','bechamel','tomate']}},
+  'lasaña':{c:'s',p:{n:'Lasana de carne',i:['carne picada','placas lasana','bechamel','tomate']}},
+  'pizza casera':{c:'s',p:{n:'Pizza casera',i:['harina','tomate','mozzarella','oregano']}},
+  'pizza':{c:'s',p:{n:'Pizza casera',i:['harina','tomate','mozzarella','oregano']}},
+  'gnocchi':{c:'s',p:{n:'Gnocchi al pomodoro',i:['gnocchi','tomate','albahaca','parmesano']}},
+  'minestrone':{c:'p',p:{n:'Minestrone de verduras',i:['judias blancas','zanahoria','pasta corta','tomate']}},
+  'bruschetta':{c:'p',p:{n:'Bruschetta de tomate y albahaca',i:['pan','tomate','albahaca','ajo']}},
+  'panna cotta':{c:'o',p:{n:'Panna cotta con frutos rojos',i:['nata','gelatina','frambuesas','azucar']}},
+  'tiramisu':{c:'o',p:{n:'Tiramisu casero',i:['mascarpone','cafe espresso','savoiardi','huevos']}},
+  'ossobuco':{c:'s',p:{n:'Ossobuco alla milanese',i:['ossobuco','vino blanco','zanahoria','cebolla']}},
+  // Mexicana
+  'tacos':{c:'s',p:{n:'Tacos de pollo',i:['tortillas','pollo','tomate','cilantro']}},
+  'burritos':{c:'s',p:{n:'Burritos de carne y arroz',i:['tortillas','carne picada','arroz','queso']}},
+  'enchiladas':{c:'s',p:{n:'Enchiladas de pollo',i:['tortillas','pollo','salsa tomate','queso']}},
+  'guacamole':{c:'p',p:{n:'Guacamole con nachos',i:['aguacate','tomate','cebolla','tortillas']}},
+  'quesadillas':{c:'s',p:{n:'Quesadillas de champinones',i:['tortillas','champinones','queso','jalapenos']}},
+  'pozole':{c:'p',p:{n:'Pozole rojo de pollo',i:['pollo','maiz','chile','cebolla']}},
+  'chili con carne':{c:'s',p:{n:'Chili con carne casero',i:['carne picada','frijoles','tomate','chile']}},
+  'fajitas':{c:'s',p:{n:'Fajitas de pollo',i:['pollo','pimiento','cebolla','tortillas']}},
+  'churros':{c:'o',p:{n:'Churros caseros con chocolate',i:['harina','azucar','aceite','chocolate']}},
+  'ceviche':{c:'p',p:{n:'Ceviche de camaron',i:['camarones','lima','chile','cilantro']}},
+  // Asiatica
+  'ramen':{c:'s',p:{n:'Ramen de pollo',i:['noodles','caldo','huevo','cebolleta']}},
+  'pad thai':{c:'s',p:{n:'Pad thai de gambas',i:['noodles','gambas','huevo','soja']}},
+  'curry verde':{c:'s',p:{n:'Curry verde de pollo',i:['pollo','leche de coco','curry verde','arroz']}},
+  'curry':{c:'s',p:{n:'Curry de pollo con arroz',i:['pollo','curry','leche de coco','arroz']}},
+  'gyozas':{c:'p',p:{n:'Gyozas caseras',i:['carne picada','repollo','jengibre','obleas']}},
+  'bibimbap':{c:'s',p:{n:'Bibimbap coreano',i:['arroz','ternera','verduras variadas','huevo']}},
+  'teriyaki de pollo':{c:'s',p:{n:'Pollo teriyaki con arroz',i:['pollo','teriyaki','arroz','sesamo']}},
+  'teriyaki':{c:'s',p:{n:'Pollo teriyaki con arroz',i:['pollo','teriyaki','arroz','sesamo']}},
+  'sopa miso':{c:'p',p:{n:'Sopa miso con tofu',i:['miso','tofu','wakame','cebolleta']}},
+  'katsu curry':{c:'s',p:{n:'Katsu curry de pollo',i:['pollo','curry japones','arroz','panko']}},
+  'tom yum':{c:'p',p:{n:'Tom yum de gambas',i:['gambas','champinones','lima','chile']}},
+  // General
+  'pasta':{c:'s',p:{n:'Pasta al pomodoro fresco',i:['espaguetis','tomate','albahaca','ajo']}},
+  'arroz':{c:'s',p:{n:'Arroz con pollo y verduras',i:['arroz','pollo','judias verdes','pimiento']}},
+  'pollo':{c:'s',p:{n:'Pollo a la plancha',i:['pechuga','limon','ajo','aceite']}},
+  'salmon':{c:'s',p:{n:'Salmon a la plancha con limon',i:['salmon','limon','eneldo','aceite']}},
+  'merluza':{c:'s',p:{n:'Merluza al horno con patatas',i:['merluza','patatas','limon','perejil']}},
+  'ensalada':{c:'p',p:{n:'Ensalada mixta con atun',i:['lechuga','tomate','atun','aceitunas']}},
+  'sopa':{c:'p',p:{n:'Sopa de verduras casera',i:['zanahoria','apio','puerro','patata']}},
+  'crema':{c:'p',p:{n:'Crema de calabaza',i:['calabaza','cebolla','patata','nata']}},
+  'algo con queso':{c:'s',p:{n:'Croquetas de queso caseras',i:['queso','leche','harina','huevo']}},
+  'hamburguesa':{c:'s',p:{n:'Hamburguesa casera con patatas',i:['carne picada','pan','lechuga','tomate']}},
+  'estofado':{c:'s',p:{n:'Estofado de ternera con patatas',i:['ternera','patatas','zanahoria','guisantes']}},
+  'guiso calentito':{c:'s',p:{n:'Estofado de ternera con patatas',i:['ternera','patatas','zanahoria','guisantes']}},
+  'guiso':{c:'s',p:{n:'Pollo guisado con verduras',i:['pollo','zanahoria','patata','cebolla']}},
+  'wok':{c:'s',p:{n:'Wok de verduras y pollo',i:['pollo','brocoli','zanahoria','soja']}},
+  'cuscus':{c:'s',p:{n:'Cuscus con verduras y pollo',i:['cuscus','zanahoria','calabacin','especias']}},
+  'tajine':{c:'s',p:{n:'Tajine de pollo con verduras',i:['pollo','ciruelas','almendras','especias']}},
+  'falafel':{c:'s',p:{n:'Falafel con salsa de yogur',i:['garbanzos','cebolla','cilantro','tahini']}},
+  'hummus':{c:'p',p:{n:'Hummus con crudites',i:['garbanzos','tahini','limon','zanahoria']}},
+  'moussaka':{c:'s',p:{n:'Moussaka griega',i:['berenjena','carne picada','bechamel','tomate']}},
+  'souvlaki':{c:'s',p:{n:'Souvlaki de pollo con pita',i:['pollo','pan pita','tzatziki','tomate']}},
+  'quiche lorraine':{c:'s',p:{n:'Quiche lorraine casera',i:['masa','bacon','nata','queso']}},
+  'crepes':{c:'s',p:{n:'Crepes rellenos caseros',i:['harina','leche','huevo','relleno variado']}},
+  'pollo al vino':{c:'s',p:{n:'Pollo al vino blanco',i:['pollo','vino blanco','champinones','cebolla']}},
+};
+
+function aplicarAntojos(menu, antojo, prohibidos) {
+  if (!antojo || !antojo.trim()) return;
+  var keywords = antojo.toLowerCase().split(',').map(function(s){return s.trim();}).filter(Boolean);
+  var platos = [];
+
+  // Buscar coincidencias (primero exactas, luego parciales)
+  keywords.forEach(function(kw) {
+    if (ANTOJOS_MAP[kw]) {
+      platos.push(ANTOJOS_MAP[kw]);
+    } else {
+      // búsqueda parcial: ver si el keyword está contenido en alguna clave del mapa
+      var keys = Object.keys(ANTOJOS_MAP);
+      for (var ki=0; ki<keys.length; ki++) {
+        if (keys[ki].indexOf(kw)!==-1 || kw.indexOf(keys[ki])!==-1) {
+          platos.push(ANTOJOS_MAP[keys[ki]]);
+          break;
+        }
+      }
+    }
+  });
+
+  if (!platos.length) return;
+
+  // Repartir los platos en los días de la semana (máx uno por día)
+  // Usar días alternos para distribuir bien: 0, 2, 4, 6, 1, 3, 5
+  var diasOrden = [0,2,4,6,1,3,5];
+  var idx = 0;
+  platos.forEach(function(entrada) {
+    if (idx >= diasOrden.length) return;
+    var plato = {nombre: entrada.p.n, ingredientes_principales: entrada.p.i};
+    // Si el plato tiene ingredientes prohibidos, saltarlo
+    if (platoTieneProhibido(plato, prohibidos)) return;
+
+    var diaIdx = diasOrden[idx];
+    var dia = menu.dias[diaIdx];
+    if (entrada.c === 'p') dia.primer_plato = plato;
+    else if (entrada.c === 's') dia.segundo_plato = plato;
+    else if (entrada.c === 'o') dia.postre = plato;
+    idx++;
+  });
 }
 
 // ── Sugerencias dinamicas por estilo y tipo ──

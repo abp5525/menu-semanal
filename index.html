@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador de Menu Semanal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #1a0e0a, #2d1810, #3b1f14, #1e1209);
+            min-height: 100vh;
+            color: #ede0d4;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(180,90,30,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(200,120,50,0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        header, .container { position: relative; z-index: 1; }
+
+        /* ── Header ── */
+        header {
+            text-align: center;
+            padding: 40px 20px 20px;
+        }
+        header h1 {
+            font-size: 2.4rem;
+            background: linear-gradient(90deg, #d4873a, #e8a955, #c96b2e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        header p {
+            color: #a08a78;
+            margin-top: 8px;
+            font-size: 1.05rem;
+        }
+
+        /* ── Container ── */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px 60px;
+        }
+
+        /* ── Form Card ── */
+        .card {
+            background: rgba(60,35,20,0.5);
+            border: 1px solid rgba(180,120,70,0.2);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .card h2 {
+            font-size: 1.2rem;
+            color: #d4873a;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(180,120,70,0.2);
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        label {
+            font-size: 0.85rem;
+            color: #b8a090;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        input, select {
+            padding: 10px 14px;
+            border: 1px solid rgba(180,120,70,0.25);
+            border-radius: 8px;
+            background: rgba(40,22,12,0.6);
+            color: #ede0d4;
+            font-size: 0.95rem;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #d4873a;
+        }
+        input::placeholder { color: #6b5545; }
+        select option, select optgroup {
+            background: #2d1810;
+            color: #ede0d4;
+        }
+
+        /* ── Button ── */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(90deg, #b85c1a, #d4873a, #c96b2e);
+            color: #fff8f0;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(180,90,30,0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ── Loader ── */
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loader.active { display: block; }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 4px solid rgba(180,120,70,0.15);
+            border-top-color: #d4873a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Results ── */
+        #resultado { display: none; }
+        #resultado.active { display: block; }
+
+        .aviso-box {
+            background: rgba(200,140,40,0.12);
+            border-left: 4px solid #c98c28;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            color: #e8c87a;
+        }
+
+        .dia-card {
+            background: rgba(50,28,16,0.5);
+            border: 1px solid rgba(180,120,70,0.12);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 14px;
+            transition: border 0.2s, background 0.2s;
+        }
+        .dia-card:hover {
+            border-color: rgba(212,135,58,0.35);
+            background: rgba(60,34,18,0.6);
+        }
+        .dia-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .dia-header h3 {
+            font-size: 1.15rem;
+            color: #e8a955;
+        }
+        .dia-coste {
+            background: rgba(212,135,58,0.15);
+            color: #e8a955;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .plato {
+            margin-bottom: 10px;
+            padding-left: 12px;
+            border-left: 2px solid rgba(180,120,70,0.25);
+        }
+        .plato-tipo {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            color: #8a7060;
+            letter-spacing: 0.5px;
+        }
+        .plato-nombre {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ede0d4;
+        }
+        .plato-ingredientes {
+            font-size: 0.85rem;
+            color: #a08a78;
+        }
+
+        /* ── Summary ── */
+        .summary {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .summary-item {
+            text-align: center;
+            min-width: 140px;
+        }
+        .summary-item .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #d4873a, #e8a955);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .summary-item .label-text {
+            font-size: 0.8rem;
+            color: #8a7060;
+            margin-top: 4px;
+        }
+
+        .consejo {
+            margin-top: 20px;
+            padding: 14px 18px;
+            background: rgba(80,120,60,0.15);
+            border-left: 4px solid #6b8f4a;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.95rem;
+            color: #b5d49a;
+        }
+
+        .error-box {
+            background: rgba(180,50,40,0.15);
+            border-left: 4px solid #b43228;
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+            color: #e8a8a0;
+        }
+
+        /* ── Sugerencias ── */
+        .sugerencias {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            min-height: 0;
+            transition: all 0.3s;
+        }
+        .sugerencias:empty { margin-top: 0; }
+        .sugerencias .chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            background: rgba(180,120,70,0.15);
+            border: 1px solid rgba(180,120,70,0.3);
+            color: #e8c09a;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .sugerencias .chip:hover {
+            background: rgba(212,135,58,0.3);
+            border-color: #d4873a;
+            color: #fff8f0;
+            transform: scale(1.05);
+        }
+        .sugerencias .chip.selected {
+            background: rgba(212,135,58,0.4);
+            border-color: #e8a955;
+            color: #fff8f0;
+        }
+        .sugerencias-label {
+            width: 100%;
+            font-size: 0.75rem;
+            color: #8a7060;
+            margin-bottom: 2px;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── Chips multiseleccion tipo platos ── */
+        .tipo-section-label {
+            width: 100%;
+            font-size: 0.75rem;
+            color: #8a7060;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tipo-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .tipo-chips .chip {
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            background: rgba(180,120,70,0.12);
+            border: 1px solid rgba(180,120,70,0.25);
+            color: #c8a888;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .tipo-chips .chip:hover {
+            background: rgba(212,135,58,0.25);
+            border-color: #d4873a;
+            color: #fff8f0;
+            transform: scale(1.05);
+        }
+        .tipo-chips .chip.selected {
+            background: rgba(212,135,58,0.4);
+            border-color: #e8a955;
+            color: #fff8f0;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Planificador de Menu Semanal</h1>
+    <p>Genera un menu personalizado, equilibrado y ajustado a tu presupuesto</p>
+</header>
+
+<div class="container">
+
+    <!-- ── Formulario ── -->
+    <form id="menuForm">
+        <div class="card">
+            <h2>Datos basicos</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="personas">Personas</label>
+                    <input type="number" id="personas" min="1" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label for="presupuesto">Presupuesto semanal</label>
+                    <input type="number" id="presupuesto" min="1" step="0.5" placeholder="50" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Preferencias y restricciones</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="preferencias">Preferencias alimentarias</label>
+                    <input type="text" id="preferencias" placeholder="ej. vegetariano, sin cerdo...">
+                </div>
+                <div class="form-group">
+                    <label for="alergias">Alergias o intolerancias</label>
+                    <input type="text" id="alergias" placeholder="ej. gluten, lactosa...">
+                </div>
+                <div class="form-group">
+                    <label for="objetivo">Objetivo nutricional</label>
+                    <input type="text" id="objetivo" placeholder="ej. perder peso, ganar musculo...">
+                </div>
+                <div class="form-group">
+                    <label for="tiempo_cocina">Tiempo para cocinar</label>
+                    <input type="text" id="tiempo_cocina" placeholder="ej. 30 minutos, 1 hora...">
+                </div>
+                <div class="form-group full">
+                    <label for="ingredientes_evitar">Ingredientes a evitar</label>
+                    <input type="text" id="ingredientes_evitar" placeholder="ej. cebolla, marisco...">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Que te apetece hoy?</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="estilo_cocina">Estilo de cocina</label>
+                    <select id="estilo_cocina">
+                        <option value="">Sin preferencia</option>
+                        <optgroup label="Cocina espanola">
+                            <option value="casera espanola">Casera espanola</option>
+                            <option value="andaluza">Andaluza</option>
+                            <option value="vasca">Vasca</option>
+                            <option value="gallega">Gallega</option>
+                            <option value="catalana">Catalana</option>
+                        </optgroup>
+                        <optgroup label="Europea">
+                            <option value="mediterranea">Mediterranea</option>
+                            <option value="italiana">Italiana</option>
+                            <option value="francesa">Francesa</option>
+                            <option value="griega">Griega</option>
+                            <option value="portuguesa">Portuguesa</option>
+                        </optgroup>
+                        <optgroup label="Americana">
+                            <option value="mexicana">Mexicana</option>
+                            <option value="peruana">Peruana</option>
+                            <option value="argentina">Argentina</option>
+                            <option value="tex-mex">Tex-Mex</option>
+                        </optgroup>
+                        <optgroup label="Asiatica">
+                            <option value="china">China</option>
+                            <option value="japonesa">Japonesa</option>
+                            <option value="tailandesa">Tailandesa</option>
+                            <option value="india">India</option>
+                            <option value="coreana">Coreana</option>
+                        </optgroup>
+                        <optgroup label="Otras">
+                            <option value="arabe y marroqui">Arabe / Marroqui</option>
+                            <option value="fusion">Fusion</option>
+                            <option value="variada internacional">Variada internacional</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label>Tipo de platos <span style="font-weight:400;color:#8a7060">(selecciona varios)</span></label>
+                    <div class="tipo-chips" id="tipo_platos_chips">
+                        <span class="tipo-section-label">Calientes</span>
+                        <span class="chip" data-value="sopas y cremas">Sopas y cremas</span>
+                        <span class="chip" data-value="platos de cuchara">Platos de cuchara</span>
+                        <span class="chip" data-value="estofados y cocidos">Estofados y cocidos</span>
+                        <span class="chip" data-value="al horno">Al horno</span>
+                        <span class="chip" data-value="a la plancha">A la plancha</span>
+                        <span class="chip" data-value="salteados rapidos">Salteados rapidos</span>
+                        <span class="chip" data-value="arroces y paellas">Arroces y paellas</span>
+                        <span class="chip" data-value="pastas">Pastas</span>
+                        <span class="tipo-section-label">Frios / ligeros</span>
+                        <span class="chip" data-value="ensaladas">Ensaladas</span>
+                        <span class="chip" data-value="wraps y bocadillos">Wraps y bocadillos</span>
+                        <span class="chip" data-value="platos frios y gazpachos">Platos frios y gazpachos</span>
+                        <span class="tipo-section-label">Especiales</span>
+                        <span class="chip" data-value="batch cooking">Batch cooking</span>
+                        <span class="chip" data-value="sin horno ni fuegos">Sin horno ni fuegos</span>
+                        <span class="chip" data-value="recetas de 3 ingredientes">3 ingredientes</span>
+                        <span class="chip" data-value="meal prep fitness">Meal prep fitness</span>
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <label for="antojo_hoy">Algun antojo?</label>
+                    <input type="text" id="antojo_hoy" placeholder="ej. algo con queso, pasta, guiso calentito...">
+                    <div class="sugerencias" id="sugerencias"></div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn" id="btnGenerar">Generar Menu Semanal</button>
+    </form>
+
+    <!-- ── Loader ── -->
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <p>Generando tu menu personalizado...</p>
+        <p style="color:#888; font-size:0.85rem; margin-top:8px;">Esto puede tardar unos segundos</p>
+    </div>
+
+    <!-- ── Resultado ── -->
+    <div id="resultado"></div>
+
+</div>
+
+<script>
+
+// ── Menús por nivel de presupuesto (bajo / medio / alto) ──
+// Nivel se determina por presupuesto por persona por semana:
+//   bajo  : < 15 €/persona  →  ingredientes básicos, legumbres, huevos, conservas
+//   medio : 15-45 €/persona →  menú equilibrado con pescado, pollo, algo de carne
+//   alto  : > 45 €/persona  →  ingredientes premium, carnes selectas, mariscos frescos
+
+var MENUS_TIERS = {
+"casera espanola": {
+  bajo: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa de fideos con verduras",ingredientes_principales:["fideos","zanahoria","patata","apio"]},segundo_plato:{nombre:"Revuelto de huevos con tomate",ingredientes_principales:["huevos","tomate","ajo","aceite"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:3.2},
+      {dia:"Martes",primer_plato:{nombre:"Lentejas estofadas",ingredientes_principales:["lentejas","zanahoria","pimiento","cebolla"]},segundo_plato:{nombre:"Tortilla de patatas",ingredientes_principales:["huevos","patatas","cebolla"]},postre:{nombre:"Yogur natural",ingredientes_principales:["yogur"]},coste_estimado:3.5},
+      {dia:"Miercoles",primer_plato:{nombre:"Arroz blanco con tomate frito",ingredientes_principales:["arroz","tomate","ajo","aceite"]},segundo_plato:{nombre:"Sardinas en lata con pan",ingredientes_principales:["sardinas","pan","limon","perejil"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:3.0},
+      {dia:"Jueves",primer_plato:{nombre:"Potaje de garbanzos con espinacas",ingredientes_principales:["garbanzos","espinacas","ajo","pimenton"]},segundo_plato:{nombre:"Patatas con huevo y pimiento",ingredientes_principales:["patatas","huevo","pimiento","aceite"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:3.5},
+      {dia:"Viernes",primer_plato:{nombre:"Ensalada de pasta con atun",ingredientes_principales:["pasta","atun en lata","tomate","pepino"]},segundo_plato:{nombre:"Croquetas de bacalao caseras",ingredientes_principales:["bacalao","leche","harina","huevo"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:3.5},
+      {dia:"Sabado",primer_plato:{nombre:"Judias pintas estofadas",ingredientes_principales:["judias pintas","chorizo","patata","cebolla"]},segundo_plato:{nombre:"Pollo al ajillo",ingredientes_principales:["pollo","ajo","vino blanco","aceite"]},postre:{nombre:"Arroz con leche",ingredientes_principales:["arroz","leche","azucar","canela"]},coste_estimado:5.0},
+      {dia:"Domingo",primer_plato:{nombre:"Caldo de verduras con fideos",ingredientes_principales:["zanahoria","apio","puerro","fideos"]},segundo_plato:{nombre:"Huevos fritos con patatas",ingredientes_principales:["huevos","patatas","aceite","sal"]},postre:{nombre:"Fruta de temporada",ingredientes_principales:["manzana"]},coste_estimado:3.5}
+    ],
+    coste_total:25.2,
+    consejo_nutricional:"Menu economico basado en legumbres, huevos y verduras de temporada. Nutritivo y equilibrado con muy bajo coste."
+  },
+  medio: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Lentejas estofadas con verduras",ingredientes_principales:["lentejas","zanahoria","patata","pimiento"]},segundo_plato:{nombre:"Tortilla de patatas",ingredientes_principales:["huevos","patatas","cebolla"]},postre:{nombre:"Naranja de temporada",ingredientes_principales:["naranja"]},coste_estimado:5.5},
+      {dia:"Martes",primer_plato:{nombre:"Sopa de fideos con pollo",ingredientes_principales:["fideos","pollo","zanahoria","apio"]},segundo_plato:{nombre:"Pisto manchego con huevo",ingredientes_principales:["calabacin","pimiento","tomate","huevo"]},postre:{nombre:"Yogur natural",ingredientes_principales:["yogur"]},coste_estimado:5},
+      {dia:"Miercoles",primer_plato:{nombre:"Potaje de garbanzos con espinacas",ingredientes_principales:["garbanzos","espinacas","ajo","comino"]},segundo_plato:{nombre:"Merluza a la plancha con limon",ingredientes_principales:["merluza","limon","aceite de oliva"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:6},
+      {dia:"Jueves",primer_plato:{nombre:"Crema de calabaza",ingredientes_principales:["calabaza","cebolla","patata","nata"]},segundo_plato:{nombre:"Albondigas en salsa de tomate",ingredientes_principales:["carne picada","tomate","pan rallado","huevo"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:5.8},
+      {dia:"Viernes",primer_plato:{nombre:"Ensalada mixta completa",ingredientes_principales:["lechuga","tomate","atun","aceitunas"]},segundo_plato:{nombre:"Croquetas de jamon caseras",ingredientes_principales:["jamon","leche","harina","huevo"]},postre:{nombre:"Flan casero",ingredientes_principales:["huevos","leche","azucar"]},coste_estimado:6.2},
+      {dia:"Sabado",primer_plato:{nombre:"Patatas a la riojana",ingredientes_principales:["patatas","chorizo","pimiento choricero","cebolla"]},segundo_plato:{nombre:"Pollo asado con verduras",ingredientes_principales:["pollo","patatas","cebolla","pimiento"]},postre:{nombre:"Arroz con leche",ingredientes_principales:["arroz","leche","canela"]},coste_estimado:7},
+      {dia:"Domingo",primer_plato:{nombre:"Cocido madrileno",ingredientes_principales:["garbanzos","morcillo","chorizo","repollo"]},segundo_plato:{nombre:"Huevos rotos con jamon",ingredientes_principales:["huevos","patatas","jamon"]},postre:{nombre:"Fruta de temporada",ingredientes_principales:["pera"]},coste_estimado:6.5}
+    ],
+    coste_total:42,
+    consejo_nutricional:"Este menu casero incluye legumbres 3 veces por semana, pescado, carne y mucha verdura."
+  },
+  alto: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Crema de esparragos trigueros",ingredientes_principales:["esparragos trigueros","nata","cebolla","caldo de verduras"]},segundo_plato:{nombre:"Solomillo iberico con setas y reduccion de Oporto",ingredientes_principales:["solomillo iberico","setas","Oporto","mantequilla"]},postre:{nombre:"Mousse de chocolate negro artesana",ingredientes_principales:["chocolate 70%","huevos","nata","azucar"]},coste_estimado:12.5},
+      {dia:"Martes",primer_plato:{nombre:"Gazpacho de tomates cherry con croutons artesanos",ingredientes_principales:["tomates cherry","pepino","pimiento","ajo"]},segundo_plato:{nombre:"Merluza en salsa verde con almejas",ingredientes_principales:["merluza","almejas","vino blanco","perejil"]},postre:{nombre:"Tarta de queso artesana",ingredientes_principales:["queso crema","huevos","nata","galletas"]},coste_estimado:13.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada de higos con jamon iberico y reduccion PX",ingredientes_principales:["higos","jamon iberico","rucula","reduccion PX"]},segundo_plato:{nombre:"Secreto iberico a la brasa con patatas panadera",ingredientes_principales:["secreto iberico","patatas","romero","ajo"]},postre:{nombre:"Crema catalana artesana",ingredientes_principales:["nata","leche","yemas","azucar"]},coste_estimado:14.0},
+      {dia:"Jueves",primer_plato:{nombre:"Crema de boletus con aceite de trufa",ingredientes_principales:["boletus","cebolla","nata","aceite de trufa"]},segundo_plato:{nombre:"Carrilleras de cerdo al vino tinto con pure trufado",ingredientes_principales:["carrilleras","vino tinto","trufa","patata"]},postre:{nombre:"Pera al vino tinto con helado de vainilla",ingredientes_principales:["pera","vino tinto","canela","helado"]},coste_estimado:13.0},
+      {dia:"Viernes",primer_plato:{nombre:"Tosta de salmon ahumado con aguacate y alcaparras",ingredientes_principales:["salmon ahumado","aguacate","alcaparras","pan artesano"]},segundo_plato:{nombre:"Rodaballo al horno con verduras de temporada",ingredientes_principales:["rodaballo","tomate cherry","aceitunas","limon"]},postre:{nombre:"Sorbete de limon artesano",ingredientes_principales:["limon","azucar","clara de huevo"]},coste_estimado:14.0},
+      {dia:"Sabado",primer_plato:{nombre:"Croquetas de jamon iberico de bellota",ingredientes_principales:["jamon iberico","leche","mantequilla","harina"]},segundo_plato:{nombre:"Cordero lechal asado con patatas e hierbas aromaticas",ingredientes_principales:["cordero lechal","patatas","romero","ajo"]},postre:{nombre:"Torrija artesana con helado de canela",ingredientes_principales:["pan brioche","leche","huevo","helado de canela"]},coste_estimado:16.0},
+      {dia:"Domingo",primer_plato:{nombre:"Caldo de marisco con fideos",ingredientes_principales:["gambas","mejillones","almejas","fideos"]},segundo_plato:{nombre:"Cochinillo asado con su jugo",ingredientes_principales:["cochinillo","ajo","romero","manteca"]},postre:{nombre:"Coulant de chocolate con helado de vainilla",ingredientes_principales:["chocolate","mantequilla","huevos","azucar"]},coste_estimado:13.0}
+    ],
+    coste_total:95.5,
+    consejo_nutricional:"Menu premium con iberico, mariscos frescos, trufa y postres artesanos. Para celebrar cada dia de la semana."
+  }
+},
+"italiana": {
+  bajo: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa de pasta con verduras",ingredientes_principales:["pasta corta","zanahoria","apio","tomate"]},segundo_plato:{nombre:"Espaguetis aglio e olio",ingredientes_principales:["espaguetis","ajo","aceite oliva","guindilla"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:3.0},
+      {dia:"Martes",primer_plato:{nombre:"Bruschetta de tomate y ajo",ingredientes_principales:["pan","tomate","ajo","aceite"]},segundo_plato:{nombre:"Pasta al pomodoro basica",ingredientes_principales:["espaguetis","tomate triturado","ajo","albahaca"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:3.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada simple con vinagreta italiana",ingredientes_principales:["lechuga","tomate","pepino","aceitunas"]},segundo_plato:{nombre:"Pasta con mantequilla y parmesano",ingredientes_principales:["pasta","mantequilla","parmesano rallado","pimienta"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:3.5},
+      {dia:"Jueves",primer_plato:{nombre:"Minestrone basica",ingredientes_principales:["judias","zanahoria","apio","tomate"]},segundo_plato:{nombre:"Pizza casera margarita",ingredientes_principales:["harina","tomate","mozzarella","oregano"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:4.0},
+      {dia:"Viernes",primer_plato:{nombre:"Pisto de verduras italiano",ingredientes_principales:["calabacin","pimiento","tomate","berenjena"]},segundo_plato:{nombre:"Frittata de verduras",ingredientes_principales:["huevos","zanahoria","cebolla","pimiento"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:3.5},
+      {dia:"Sabado",primer_plato:{nombre:"Bruschetta de ricotta y tomate",ingredientes_principales:["pan","ricotta","tomate","oregano"]},segundo_plato:{nombre:"Lasana de verduras casera",ingredientes_principales:["placas lasana","calabacin","tomate","bechamel"]},postre:{nombre:"Flan casero",ingredientes_principales:["huevos","leche","azucar","caramelo"]},coste_estimado:5.5},
+      {dia:"Domingo",primer_plato:{nombre:"Crema de tomate toscana",ingredientes_principales:["tomate","pan duro","ajo","albahaca"]},segundo_plato:{nombre:"Gnocchi al pomodoro",ingredientes_principales:["gnocchi","tomate","ajo","albahaca"]},postre:{nombre:"Uvas",ingredientes_principales:["uvas"]},coste_estimado:3.5}
+    ],
+    coste_total:26.0,
+    consejo_nutricional:"Menu italiano economico basado en pasta, pan y verduras. Sabroso y nutritivo con ingredientes de bajo coste."
+  },
+  medio: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Minestrone de verduras",ingredientes_principales:["judias blancas","zanahoria","pasta corta","tomate"]},segundo_plato:{nombre:"Pechuga a la parmigiana",ingredientes_principales:["pechuga","tomate","mozzarella","pan rallado"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:6},
+      {dia:"Martes",primer_plato:{nombre:"Bruschetta de tomate",ingredientes_principales:["pan","tomate","albahaca","ajo"]},segundo_plato:{nombre:"Espaguetis a la carbonara",ingredientes_principales:["espaguetis","bacon","huevo","parmesano"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:5.5},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada caprese",ingredientes_principales:["tomate","mozzarella","albahaca","aceite"]},segundo_plato:{nombre:"Risotto de champinones",ingredientes_principales:["arroz arborio","champinones","cebolla","parmesano"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:6.5},
+      {dia:"Jueves",primer_plato:{nombre:"Crema de calabacin",ingredientes_principales:["calabacin","patata","ajo","parmesano"]},segundo_plato:{nombre:"Pizza casera de verduras",ingredientes_principales:["harina","tomate","mozzarella","pimiento"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:5.8},
+      {dia:"Viernes",primer_plato:{nombre:"Antipasto de verduras asadas",ingredientes_principales:["berenjena","calabacin","pimiento","aceite"]},segundo_plato:{nombre:"Penne al pesto con pollo",ingredientes_principales:["penne","pesto","pollo","tomates cherry"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:6},
+      {dia:"Sabado",primer_plato:{nombre:"Sopa de tomate toscana",ingredientes_principales:["tomate","pan","ajo","albahaca"]},segundo_plato:{nombre:"Lasana de carne",ingredientes_principales:["carne picada","placas lasana","bechamel","tomate"]},postre:{nombre:"Panna cotta",ingredientes_principales:["nata","leche","azucar"]},coste_estimado:7.2},
+      {dia:"Domingo",primer_plato:{nombre:"Gnocchi al pomodoro",ingredientes_principales:["gnocchi","tomate","albahaca","parmesano"]},segundo_plato:{nombre:"Saltimbocca de pollo",ingredientes_principales:["pechuga","jamon","salvia","vino"]},postre:{nombre:"Uvas",ingredientes_principales:["uvas"]},coste_estimado:6}
+    ],
+    coste_total:43,
+    consejo_nutricional:"La cocina italiana es equilibrada con pasta, verduras y aceite de oliva."
+  },
+  alto: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Carpaccio de ternera con parmesano 36 meses y rucula",ingredientes_principales:["solomillo de ternera","parmesano","rucula","aceite de trufa"]},segundo_plato:{nombre:"Risotto con trufa negra y parmesano",ingredientes_principales:["arroz arborio","trufa negra","parmesano","mantequilla"]},postre:{nombre:"Panna cotta con coulis de frutos rojos",ingredientes_principales:["nata","gelatina","frambuesas","azucar"]},coste_estimado:15.0},
+      {dia:"Martes",primer_plato:{nombre:"Burrata con tomates cherry confitados y albahaca",ingredientes_principales:["burrata","tomates cherry","albahaca","aceite extra virgen"]},segundo_plato:{nombre:"Tagliatelle frescos con ragu de ternera madurada",ingredientes_principales:["tagliatelle frescos","ternera madurada","vino tinto","parmesano"]},postre:{nombre:"Tiramisu artesano",ingredientes_principales:["mascarpone","huevos","cafe espresso","savoiardi"]},coste_estimado:13.5},
+      {dia:"Miercoles",primer_plato:{nombre:"Vitello tonnato clasico",ingredientes_principales:["ternera","atun","alcaparras","mayonesa"]},segundo_plato:{nombre:"Ossobuco alla milanese con risotto al azafran",ingredientes_principales:["ossobuco","vino blanco","azafran","arroz arborio"]},postre:{nombre:"Gelato artesano de pistacchio siciliano",ingredientes_principales:["pistacchio","leche","yemas","azucar"]},coste_estimado:15.0},
+      {dia:"Jueves",primer_plato:{nombre:"Ensalada de rucula con bresaola y parmesano",ingredientes_principales:["rucula","bresaola","parmesano","limon"]},segundo_plato:{nombre:"Risotto di mare",ingredientes_principales:["gambas","almejas","calamares","arroz arborio"]},postre:{nombre:"Cannoli siciliani artesanos",ingredientes_principales:["ricotta","chocolate","pistacchio","obleas"]},coste_estimado:14.0},
+      {dia:"Viernes",primer_plato:{nombre:"Vieiras gratinadas con mantequilla y hierbas",ingredientes_principales:["vieiras","mantequilla","ajo","pan rallado artesano"]},segundo_plato:{nombre:"Branzino al forno con verduras de temporada",ingredientes_principales:["lubina","tomate cherry","aceitunas","alcaparras"]},postre:{nombre:"Panna cotta al limon con mermelada de citricos",ingredientes_principales:["nata","limon","gelatina","mermelada citricos"]},coste_estimado:15.0},
+      {dia:"Sabado",primer_plato:{nombre:"Antipasto misto premium",ingredientes_principales:["prosciutto di Parma","salami Milano","grana padano","aceitunas taggiasche"]},segundo_plato:{nombre:"Bistecca alla fiorentina con patatas al romero",ingredientes_principales:["chuleton toscano","patatas","romero","ajo"]},postre:{nombre:"Cassata siciliana",ingredientes_principales:["ricotta","fruta confitada","bizcocho","mazapan"]},coste_estimado:18.0},
+      {dia:"Domingo",primer_plato:{nombre:"Crema di funghi porcini con aceite de trufa blanca",ingredientes_principales:["porcini","cebolla","nata","trufa blanca"]},segundo_plato:{nombre:"Vitello alla saltimbocca con jamon San Daniele",ingredientes_principales:["ternera","jamon San Daniele","salvia","vino blanco"]},postre:{nombre:"Zabaione clasico con fresas frescas",ingredientes_principales:["yemas","Marsala","fresas","azucar"]},coste_estimado:14.0}
+    ],
+    coste_total:104.5,
+    consejo_nutricional:"Menu italiano gourmet con ingredientes DOP, trufa, mariscos frescos y postres tradicionales artesanos de las mejores regiones de Italia."
+  }
+},
+"mexicana": {
+  bajo: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa de tortilla basica",ingredientes_principales:["tortillas","tomate","caldo","aguacate"]},segundo_plato:{nombre:"Tacos de frijoles refritos",ingredientes_principales:["tortillas","frijoles","queso rallado","salsa"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:3.0},
+      {dia:"Martes",primer_plato:{nombre:"Ensalada de maiz y pimiento",ingredientes_principales:["maiz","pimiento","cebolla","limon"]},segundo_plato:{nombre:"Quesadillas de queso",ingredientes_principales:["tortillas","queso","oregano","aceite"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:3.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Crema de elote basica",ingredientes_principales:["maiz","cebolla","leche","mantequilla"]},segundo_plato:{nombre:"Burritos de arroz y frijoles",ingredientes_principales:["tortillas","arroz","frijoles","queso"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:3.5},
+      {dia:"Jueves",primer_plato:{nombre:"Guacamole basico con tortillas",ingredientes_principales:["aguacate","tomate","cebolla","limon"]},segundo_plato:{nombre:"Enchiladas de pollo con salsa casera",ingredientes_principales:["tortillas","pollo","tomate","queso"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:4.0},
+      {dia:"Viernes",primer_plato:{nombre:"Sopa de lima sencilla",ingredientes_principales:["lima","pollo","caldo","tortillas"]},segundo_plato:{nombre:"Tostadas de frijoles con queso",ingredientes_principales:["tostadas","frijoles","queso","lechuga"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:3.0},
+      {dia:"Sabado",primer_plato:{nombre:"Chilaquiles verdes sencillos",ingredientes_principales:["tortillas","salsa verde","queso","crema"]},segundo_plato:{nombre:"Arroz a la mexicana con pollo",ingredientes_principales:["arroz","pollo","tomate","guisantes"]},postre:{nombre:"Churros caseros",ingredientes_principales:["harina","azucar","aceite","canela"]},coste_estimado:5.0},
+      {dia:"Domingo",primer_plato:{nombre:"Pozole basico de pollo",ingredientes_principales:["maiz pozolero","pollo","caldo","oregano"]},segundo_plato:{nombre:"Tacos de papa y chorizo",ingredientes_principales:["tortillas","papa","chorizo","cebolla"]},postre:{nombre:"Mango",ingredientes_principales:["mango"]},coste_estimado:3.5}
+    ],
+    coste_total:25.0,
+    consejo_nutricional:"Menu mexicano economico basado en legumbres, maiz, tortillas y verduras. Sabroso, nutritivo y muy asequible."
+  },
+  medio: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa azteca de tortilla",ingredientes_principales:["tortillas","tomate","chile","aguacate"]},segundo_plato:{nombre:"Tacos de pollo",ingredientes_principales:["tortillas","pollo","tomate","cilantro"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:5.8},
+      {dia:"Martes",primer_plato:{nombre:"Ensalada de frijoles negros",ingredientes_principales:["frijoles","maiz","pimiento","limon"]},segundo_plato:{nombre:"Burritos de carne y arroz",ingredientes_principales:["tortillas","carne picada","arroz","queso"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:6},
+      {dia:"Miercoles",primer_plato:{nombre:"Guacamole con nachos",ingredientes_principales:["aguacate","tomate","cebolla","tortillas"]},segundo_plato:{nombre:"Enchiladas de pollo",ingredientes_principales:["tortillas","pollo","salsa tomate","queso"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:6.2},
+      {dia:"Jueves",primer_plato:{nombre:"Crema de elote",ingredientes_principales:["maiz","cebolla","nata","mantequilla"]},segundo_plato:{nombre:"Quesadillas de champinones",ingredientes_principales:["tortillas","champinones","queso","jalapenos"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:5},
+      {dia:"Viernes",primer_plato:{nombre:"Pozole rojo de pollo",ingredientes_principales:["pollo","maiz","chile","cebolla"]},segundo_plato:{nombre:"Tostadas de atun",ingredientes_principales:["tostadas","atun","aguacate","limon"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:5.5},
+      {dia:"Sabado",primer_plato:{nombre:"Nachos con chili con carne",ingredientes_principales:["nachos","carne picada","frijoles","queso"]},segundo_plato:{nombre:"Fajitas de pollo",ingredientes_principales:["pollo","pimiento","cebolla","tortillas"]},postre:{nombre:"Churros caseros",ingredientes_principales:["harina","azucar","aceite"]},coste_estimado:7},
+      {dia:"Domingo",primer_plato:{nombre:"Chilaquiles verdes",ingredientes_principales:["tortillas","salsa verde","crema","queso"]},segundo_plato:{nombre:"Arroz a la mexicana",ingredientes_principales:["arroz","pollo","tomate","guisantes"]},postre:{nombre:"Mango",ingredientes_principales:["mango"]},coste_estimado:6.5}
+    ],
+    coste_total:42,
+    consejo_nutricional:"La cocina mexicana combina legumbres, cereales y proteinas de forma natural."
+  },
+  alto: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Ceviche de camaron tigre con leche de tigre",ingredientes_principales:["camarones","lima","chile habanero","cilantro"]},segundo_plato:{nombre:"Tacos de camaron con salsa de aguacate y mango",ingredientes_principales:["camarones","tortillas artesanas","aguacate","mango"]},postre:{nombre:"Helado de mango con chile piquin artesano",ingredientes_principales:["mango","chile piquin","azucar","crema"]},coste_estimado:13.0},
+      {dia:"Martes",primer_plato:{nombre:"Tostadas de atun aleta amarilla con aguacate",ingredientes_principales:["atun aleta amarilla","aguacate","jalapeno","limon"]},segundo_plato:{nombre:"Enchiladas suizas con pollo de corral y crema",ingredientes_principales:["tortillas","pollo de corral","crema","queso manchego"]},postre:{nombre:"Arroz con leche de coco y coco tostado",ingredientes_principales:["arroz","coco","leche de coco","canela"]},coste_estimado:13.5},
+      {dia:"Miercoles",primer_plato:{nombre:"Guacamole premium con totopos artesanos",ingredientes_principales:["aguacate hass","tomate","cebolla morada","chile serrano"]},segundo_plato:{nombre:"Cochinita pibil con tortillas caseras y cebolla morada encurtida",ingredientes_principales:["cerdo","achiote","naranja agria","tortillas"]},postre:{nombre:"Flan de cajeta artesano",ingredientes_principales:["cajeta","huevos","leche","vainilla"]},coste_estimado:14.0},
+      {dia:"Jueves",primer_plato:{nombre:"Crema de flor de calabaza con crema y epazote",ingredientes_principales:["flor de calabaza","crema","cebolla","epazote"]},segundo_plato:{nombre:"Chiles en nogada de temporada",ingredientes_principales:["chile poblano","carne","nogada de nuez","granada"]},postre:{nombre:"Mousse de chocolate con chile ancho",ingredientes_principales:["chocolate","chile ancho","huevos","nata"]},coste_estimado:15.0},
+      {dia:"Viernes",primer_plato:{nombre:"Aguachile negro de camarones frescos",ingredientes_principales:["camarones","chile negro","pepino","cebolla morada"]},segundo_plato:{nombre:"Birria de res premium con consomme",ingredientes_principales:["costilla de res","chile guajillo","consomme","cebolla"]},postre:{nombre:"Churros artesanos con chocolate belga caliente",ingredientes_principales:["churros","chocolate belga","nata","azucar"]},coste_estimado:14.0},
+      {dia:"Sabado",primer_plato:{nombre:"Tacos de costilla de res premium",ingredientes_principales:["costilla de res","tortillas","salsa roja","cebolla"]},segundo_plato:{nombre:"Mole negro oaxaqueno con pavo",ingredientes_principales:["pavo","mole negro","chocolate","especias variadas"]},postre:{nombre:"Tres leches artesano con cajeta",ingredientes_principales:["bizcocho","leche","nata","cajeta"]},coste_estimado:16.0},
+      {dia:"Domingo",primer_plato:{nombre:"Sopa de lima con mariscos y tortillas crujientes",ingredientes_principales:["camaron","calamar","lima","caldo de pescado"]},segundo_plato:{nombre:"Cabrito asado al pastor con arroz rojo premium",ingredientes_principales:["cabrito","achiote","arroz","especias"]},postre:{nombre:"Tamal de elote dulce con crema y queso",ingredientes_principales:["elote","masa","crema","queso"]},coste_estimado:14.5}
+    ],
+    coste_total:100.0,
+    consejo_nutricional:"Menu mexicano gourmet con mariscos frescos, carnes premium y recetas tradicionales de alta gastronomia mexicana."
+  }
+},
+"asiatica": {
+  bajo: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa miso basica con tofu",ingredientes_principales:["miso","tofu","wakame","cebolleta"]},segundo_plato:{nombre:"Arroz frito con huevo y verduras",ingredientes_principales:["arroz","huevo","zanahoria","salsa de soja"]},postre:{nombre:"Mandarina",ingredientes_principales:["mandarina"]},coste_estimado:2.5},
+      {dia:"Martes",primer_plato:{nombre:"Rollitos de primavera de verduras",ingredientes_principales:["obleas","repollo","zanahoria","salsa de soja"]},segundo_plato:{nombre:"Fideos de arroz con salsa de soja y verduras",ingredientes_principales:["fideos arroz","zanahoria","soja","ajo"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:3.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada de pepino con sesamo",ingredientes_principales:["pepino","vinagre de arroz","sesamo","ajo"]},segundo_plato:{nombre:"Tofu salteado con verduras y arroz",ingredientes_principales:["tofu","brocoli","zanahoria","arroz"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:3.0},
+      {dia:"Jueves",primer_plato:{nombre:"Sopa de verduras estilo asiatico",ingredientes_principales:["zanahoria","pak choi","jengibre","caldo"]},segundo_plato:{nombre:"Arroz con curry de verduras basico",ingredientes_principales:["arroz","patata","curry","cebolla"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:3.5},
+      {dia:"Viernes",primer_plato:{nombre:"Edamame con sal",ingredientes_principales:["edamame","sal marina"]},segundo_plato:{nombre:"Ramen de verduras casero",ingredientes_principales:["noodles","caldo","verduras","soja"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:3.0},
+      {dia:"Sabado",primer_plato:{nombre:"Gyozas de verduras caseras",ingredientes_principales:["obleas","repollo","jengibre","soja"]},segundo_plato:{nombre:"Pollo teriyaki basico con arroz",ingredientes_principales:["pollo","teriyaki","arroz","sesamo"]},postre:{nombre:"Fruta",ingredientes_principales:["pera"]},coste_estimado:5.0},
+      {dia:"Domingo",primer_plato:{nombre:"Sopa tom kha de verduras",ingredientes_principales:["leche de coco","champinones","galanga","lima"]},segundo_plato:{nombre:"Noodles con salsa de cacahuete",ingredientes_principales:["noodles","manteca de cacahuete","soja","jengibre"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:3.5}
+    ],
+    coste_total:23.5,
+    consejo_nutricional:"Menu asiatico economico basado en tofu, verduras, arroz y noodles. Nutritivo, ligero y de muy bajo coste."
+  },
+  medio: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sopa miso con tofu",ingredientes_principales:["miso","tofu","wakame","cebolleta"]},segundo_plato:{nombre:"Arroz frito con verduras",ingredientes_principales:["arroz","huevo","zanahoria","soja"]},postre:{nombre:"Mandarina",ingredientes_principales:["mandarina"]},coste_estimado:5},
+      {dia:"Martes",primer_plato:{nombre:"Rollitos de primavera",ingredientes_principales:["obleas","repollo","zanahoria","soja"]},segundo_plato:{nombre:"Pollo teriyaki con arroz",ingredientes_principales:["pollo","teriyaki","arroz","sesamo"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:5.8},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada thai de pepino",ingredientes_principales:["pepino","cacahuetes","lima","cilantro"]},segundo_plato:{nombre:"Pad thai de gambas",ingredientes_principales:["noodles","gambas","huevo","soja"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:6.5},
+      {dia:"Jueves",primer_plato:{nombre:"Gyozas caseras",ingredientes_principales:["carne picada","repollo","jengibre","obleas"]},segundo_plato:{nombre:"Curry verde de pollo",ingredientes_principales:["pollo","leche de coco","curry","arroz"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:6},
+      {dia:"Viernes",primer_plato:{nombre:"Edamame con sal",ingredientes_principales:["edamame","sal"]},segundo_plato:{nombre:"Ramen de pollo",ingredientes_principales:["noodles","caldo","huevo","cebolleta"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:5.5},
+      {dia:"Sabado",primer_plato:{nombre:"Wok de verduras con tofu",ingredientes_principales:["tofu","brocoli","pimiento","soja"]},segundo_plato:{nombre:"Bibimbap coreano",ingredientes_principales:["arroz","ternera","verduras","huevo"]},postre:{nombre:"Helado de mango",ingredientes_principales:["mango","yogur","miel"]},coste_estimado:7},
+      {dia:"Domingo",primer_plato:{nombre:"Tom yum de gambas",ingredientes_principales:["gambas","champinones","lima","chile"]},segundo_plato:{nombre:"Pollo agridulce con arroz",ingredientes_principales:["pollo","pina","pimiento","arroz"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:6.2}
+    ],
+    coste_total:42,
+    consejo_nutricional:"La cocina asiatica usa arroz, verduras y proteinas magras."
+  },
+  alto: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Sashimi de atun rojo de almadraba",ingredientes_principales:["atun rojo","salsa de soja","wasabi","jengibre encurtido"]},segundo_plato:{nombre:"Wagyu yakiniku con arroz de sushi y salsa ponzu",ingredientes_principales:["wagyu A5","arroz de sushi","ponzu","sesamo"]},postre:{nombre:"Mochi de te matcha y fresa artesano",ingredientes_principales:["mochi","te matcha","fresa","azucar"]},coste_estimado:16.0},
+      {dia:"Martes",primer_plato:{nombre:"Tartar de salmon con caviar de tobiko y aguacate",ingredientes_principales:["salmon fresco","tobiko","aguacate","wasabi"]},segundo_plato:{nombre:"Ramen de cerdo tonkotsu 12 horas con chashu",ingredientes_principales:["cerdo","noodles","caldo tonkotsu","ajitsuke tamago"]},postre:{nombre:"Mango sticky rice con leche de coco premium",ingredientes_principales:["mango","arroz glutinoso","leche de coco","sesamo"]},coste_estimado:14.5},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada de wakame y pepino con ikura",ingredientes_principales:["wakame","pepino","ikura","vinagre de arroz"]},segundo_plato:{nombre:"Pad thai de gambas tigre con salsa artesana",ingredientes_principales:["gambas tigre","noodles","tamarindo","cacahuetes"]},postre:{nombre:"Helado de coco artesano con lychee fresco",ingredientes_principales:["coco","lychee","leche","azucar"]},coste_estimado:13.5},
+      {dia:"Jueves",primer_plato:{nombre:"Gyozas de langostino con aceite de trufa",ingredientes_principales:["langostinos","obleas","trufa","jengibre"]},segundo_plato:{nombre:"Bibimbap coreano con buey wagyu",ingredientes_principales:["arroz","buey wagyu","verduras variadas","gochujang"]},postre:{nombre:"Dorayaki artesano con anko casero",ingredientes_principales:["harina","huevo","anko","miel"]},coste_estimado:14.0},
+      {dia:"Viernes",primer_plato:{nombre:"Edamame premium con mantequilla de trufa",ingredientes_principales:["edamame","trufa","mantequilla","flor de sal"]},segundo_plato:{nombre:"Pato de Pekin con crepas artesanas y salsa hoisin",ingredientes_principales:["pato","crepas","pepino","salsa hoisin"]},postre:{nombre:"Tarta de queso japonesa con te matcha",ingredientes_principales:["queso crema","te matcha","huevos","azucar"]},coste_estimado:15.0},
+      {dia:"Sabado",primer_plato:{nombre:"Tom yum de mariscos premium",ingredientes_principales:["gambas","vieiras","champinones exoticos","galanga"]},segundo_plato:{nombre:"Black cod estilo miso Nobu",ingredientes_principales:["bacalao negro","miso","sake","mirin"]},postre:{nombre:"Taiyaki artesano de crema de azuki",ingredientes_principales:["harina","azuki","azucar","huevo"]},coste_estimado:16.5},
+      {dia:"Domingo",primer_plato:{nombre:"Sopa miso de almejas con dashi artesano",ingredientes_principales:["almejas","dashi","miso","tofu sedoso"]},segundo_plato:{nombre:"Sukiyaki de wagyu con verduras de temporada",ingredientes_principales:["wagyu","tofu","verduras variadas","caldo sukiyaki"]},postre:{nombre:"Helado de sesamo negro artesano",ingredientes_principales:["sesamo negro","leche","nata","azucar"]},coste_estimado:15.5}
+    ],
+    coste_total:105.0,
+    consejo_nutricional:"Menu asiatico premium con wagyu, mariscos frescos, sashimi de primera calidad y postres artesanos japoneses y tailandeses."
+  }
+},
+"default": {
+  bajo: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Crema de verduras economica",ingredientes_principales:["calabacin","zanahoria","patata","cebolla"]},segundo_plato:{nombre:"Tortilla francesa con ensalada",ingredientes_principales:["huevos","lechuga","tomate","aceite"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:3.0},
+      {dia:"Martes",primer_plato:{nombre:"Lentejas con verduras",ingredientes_principales:["lentejas","zanahoria","patata","pimiento"]},segundo_plato:{nombre:"Pasta con tomate y ajo",ingredientes_principales:["pasta","tomate","ajo","aceite"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:3.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada simple con vinagreta",ingredientes_principales:["lechuga","tomate","pepino","zanahoria"]},segundo_plato:{nombre:"Arroz con tomate y huevo frito",ingredientes_principales:["arroz","tomate","huevo","aceite"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:3.0},
+      {dia:"Jueves",primer_plato:{nombre:"Sopa de fideos de pollo",ingredientes_principales:["fideos","pollo","zanahoria","apio"]},segundo_plato:{nombre:"Merluza rebozada con patatas",ingredientes_principales:["merluza","patatas","harina","huevo"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:3.8},
+      {dia:"Viernes",primer_plato:{nombre:"Garbanzos con espinacas",ingredientes_principales:["garbanzos","espinacas","ajo","pimenton"]},segundo_plato:{nombre:"Revuelto de huevos con verduras",ingredientes_principales:["huevos","pimiento","cebolla","ajo"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:3.0},
+      {dia:"Sabado",primer_plato:{nombre:"Gazpacho economico",ingredientes_principales:["tomate","pepino","pimiento","ajo"]},segundo_plato:{nombre:"Pollo al horno basico",ingredientes_principales:["pollo","patatas","sal","aceite"]},postre:{nombre:"Natillas caseras",ingredientes_principales:["leche","huevos","azucar","vainilla"]},coste_estimado:4.5},
+      {dia:"Domingo",primer_plato:{nombre:"Caldo de verduras",ingredientes_principales:["zanahoria","cebolla","apio","puerro"]},segundo_plato:{nombre:"Estofado de patatas con ternera",ingredientes_principales:["patatas","ternera","zanahoria","guisantes"]},postre:{nombre:"Fruta de temporada",ingredientes_principales:["manzana"]},coste_estimado:3.8}
+    ],
+    coste_total:24.1,
+    consejo_nutricional:"Menu economico y equilibrado basado en legumbres, huevos, verduras y algo de proteina. Muy asequible y nutritivo."
+  },
+  medio: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Crema de verduras",ingredientes_principales:["calabacin","zanahoria","patata","cebolla"]},segundo_plato:{nombre:"Pollo a la plancha",ingredientes_principales:["pechuga","lechuga","tomate","aceite"]},postre:{nombre:"Manzana",ingredientes_principales:["manzana"]},coste_estimado:5.5},
+      {dia:"Martes",primer_plato:{nombre:"Lentejas con verduras",ingredientes_principales:["lentejas","zanahoria","patata","pimiento"]},segundo_plato:{nombre:"Tortilla francesa",ingredientes_principales:["huevos","lechuga","tomate"]},postre:{nombre:"Yogur",ingredientes_principales:["yogur"]},coste_estimado:4.8},
+      {dia:"Miercoles",primer_plato:{nombre:"Ensalada con atun",ingredientes_principales:["lechuga","atun","maiz","tomate"]},segundo_plato:{nombre:"Pasta con tomate",ingredientes_principales:["espaguetis","tomate","albahaca","ajo"]},postre:{nombre:"Platano",ingredientes_principales:["platano"]},coste_estimado:5},
+      {dia:"Jueves",primer_plato:{nombre:"Sopa de pollo",ingredientes_principales:["pollo","fideos","zanahoria","apio"]},segundo_plato:{nombre:"Merluza al horno",ingredientes_principales:["merluza","patatas","limon","perejil"]},postre:{nombre:"Naranja",ingredientes_principales:["naranja"]},coste_estimado:6.2},
+      {dia:"Viernes",primer_plato:{nombre:"Garbanzos con espinacas",ingredientes_principales:["garbanzos","espinacas","ajo","pimenton"]},segundo_plato:{nombre:"Revuelto de setas",ingredientes_principales:["huevos","setas","gambas","ajo"]},postre:{nombre:"Pera",ingredientes_principales:["pera"]},coste_estimado:6},
+      {dia:"Sabado",primer_plato:{nombre:"Gazpacho andaluz",ingredientes_principales:["tomate","pepino","pimiento","ajo"]},segundo_plato:{nombre:"Arroz con pollo",ingredientes_principales:["arroz","pollo","judias verdes","pimiento"]},postre:{nombre:"Flan casero",ingredientes_principales:["huevos","leche","azucar"]},coste_estimado:6.5},
+      {dia:"Domingo",primer_plato:{nombre:"Ensaladilla rusa",ingredientes_principales:["patata","zanahoria","atun","mayonesa"]},segundo_plato:{nombre:"Estofado de ternera",ingredientes_principales:["ternera","patata","zanahoria","guisantes"]},postre:{nombre:"Uvas",ingredientes_principales:["uvas"]},coste_estimado:7}
+    ],
+    coste_total:41,
+    consejo_nutricional:"Menu equilibrado con legumbres, pescado, carne y mucha verdura."
+  },
+  alto: {
+    dias:[
+      {dia:"Lunes",primer_plato:{nombre:"Crema de coliflor con aceite de trufa y croutons artesanos",ingredientes_principales:["coliflor","nata","trufa","pan artesano"]},segundo_plato:{nombre:"Solomillo de ternera con salsa de foie y setas",ingredientes_principales:["solomillo","foie","setas","vino de Oporto"]},postre:{nombre:"Coulant de chocolate negro con helado de vainilla",ingredientes_principales:["chocolate 70%","mantequilla","huevos","helado"]},coste_estimado:14.0},
+      {dia:"Martes",primer_plato:{nombre:"Ensalada templada de langostinos con aguacate",ingredientes_principales:["langostinos","aguacate","lechuga","vinagreta de limon"]},segundo_plato:{nombre:"Dorada a la sal con verduras salteadas",ingredientes_principales:["dorada","sal gorda","limon","verduras de temporada"]},postre:{nombre:"Tarta de fresas y nata artesana",ingredientes_principales:["fresas","nata","bizcocho","azucar"]},coste_estimado:14.0},
+      {dia:"Miercoles",primer_plato:{nombre:"Carpaccio de vieiras con aceite de citricos",ingredientes_principales:["vieiras","limon","lima","aceite extra virgen"]},segundo_plato:{nombre:"Presa iberica con setas y pure trufado",ingredientes_principales:["presa iberica","setas","trufa","pure de patata"]},postre:{nombre:"Sorbete de mango artesano",ingredientes_principales:["mango","azucar","lima","menta"]},coste_estimado:14.5},
+      {dia:"Jueves",primer_plato:{nombre:"Bisque de marisco",ingredientes_principales:["gambas","nata","brandy","caldo de marisco"]},segundo_plato:{nombre:"Lubina al vapor con vinagreta de citricos y algas",ingredientes_principales:["lubina","limon","naranja","algas"]},postre:{nombre:"Creme brulee clasica",ingredientes_principales:["nata","yemas","azucar","vainilla"]},coste_estimado:14.5},
+      {dia:"Viernes",primer_plato:{nombre:"Ensalada de bogavante con vinagreta de mango",ingredientes_principales:["bogavante","mango","aguacate","vinagreta"]},segundo_plato:{nombre:"Rodaballo a la plancha con esparragos trigueros",ingredientes_principales:["rodaballo","esparragos","mantequilla","limon"]},postre:{nombre:"Mousse de maracuya con merengue",ingredientes_principales:["maracuya","nata","merengue","azucar"]},coste_estimado:16.0},
+      {dia:"Sabado",primer_plato:{nombre:"Foie gras a la plancha con manzana caramelizada",ingredientes_principales:["foie gras","manzana","azucar","Oporto"]},segundo_plato:{nombre:"Chuleton de buey con patatas panaderas y pimientos asados",ingredientes_principales:["chuleton de buey","patatas","pimientos","romero"]},postre:{nombre:"Tarta de chocolate con ganache de frambuesa",ingredientes_principales:["chocolate","frambuesa","nata","mantequilla"]},coste_estimado:17.5},
+      {dia:"Domingo",primer_plato:{nombre:"Caldo de buey con fideos artesanos",ingredientes_principales:["huesos de buey","fideos","zanahoria","apio"]},segundo_plato:{nombre:"Cordero de leche asado con pure de ajo y tomillo",ingredientes_principales:["cordero lechal","ajo","tomillo","pure de patata"]},postre:{nombre:"Tarta de Santiago artesana",ingredientes_principales:["almendra","huevos","azucar","limon"]},coste_estimado:13.5}
+    ],
+    coste_total:104.0,
+    consejo_nutricional:"Menu variado de alta cocina con ingredientes premium: mariscos, carnes selectas, trufa y postres artesanos de primer nivel."
+  }
+}
+};
+
+var ESTILOS_A_DEMO={"casera espanola":"casera espanola","andaluza":"casera espanola","vasca":"casera espanola","gallega":"casera espanola","catalana":"casera espanola","italiana":"italiana","francesa":"italiana","griega":"italiana","mediterranea":"italiana","portuguesa":"italiana","mexicana":"mexicana","peruana":"mexicana","argentina":"mexicana","tex-mex":"mexicana","china":"asiatica","japonesa":"asiatica","tailandesa":"asiatica","india":"asiatica","coreana":"asiatica","arabe y marroqui":"default","fusion":"default","variada internacional":"default"};
+
+var ETIQUETAS_NIVEL = {bajo:"Economico",medio:"Estandar",alto:"Premium"};
+var ICONOS_NIVEL = {bajo:"🥕",medio:"🍽️",alto:"⭐"};
+var COLORES_NIVEL = {bajo:"#6b8f4a",medio:"#d4873a",alto:"#c9a227"};
+
+function seleccionarNivel(presupuesto, personas) {
+  var ppp = presupuesto / Math.max(personas || 1, 1);
+  if (ppp < 15) return "bajo";
+  if (ppp < 45) return "medio";
+  return "alto";
+}
+
+function generarMenuLocal(estilo, presupuesto, personas) {
+  var k = ESTILOS_A_DEMO[estilo] || "default";
+  var nivel = seleccionarNivel(presupuesto, personas);
+  var m = JSON.parse(JSON.stringify(MENUS_TIERS[k][nivel]));
+  m.nivel = nivel;
+  if (presupuesto > 0) {
+    var f = presupuesto / m.coste_total;
+    var t = 0;
+    for (var i = 0; i < m.dias.length; i++) {
+      m.dias[i].coste_estimado = Math.round(m.dias[i].coste_estimado * f * 100) / 100;
+      t += m.dias[i].coste_estimado;
+    }
+    m.coste_total = Math.round(t * 100) / 100;
+  }
+  return m;
+}
+
+// ── Sugerencias dinamicas por estilo y tipo ──
+const sugerenciasPorEstilo = {
+    '': ['algo con queso', 'pollo asado', 'arroz caldoso', 'tortilla de patatas', 'ensalada completa', 'lentejas'],
+    'casera espanola': ['tortilla de patatas', 'croquetas', 'cocido madrileno', 'pisto manchego', 'albondigas en salsa', 'patatas a la riojana', 'huevos rotos', 'gazpacho'],
+    'andaluza': ['salmorejo', 'pescaito frito', 'flamenquin', 'espinacas con garbanzos', 'pavia de bacalao', 'gazpacho', 'rabo de toro'],
+    'vasca': ['bacalao al pil-pil', 'marmitako', 'txuleta', 'pimientos de Gernika', 'kokotxas', 'alubias de Tolosa', 'merluza en salsa verde'],
+    'gallega': ['pulpo a la gallega', 'caldo gallego', 'empanada', 'lacón con grelos', 'pimientos de Padron', 'merluza a la gallega'],
+    'catalana': ['escalivada', 'butifarra con mongetes', 'escudella', 'pa amb tomaquet', 'suquet de peix', 'canelones', 'crema catalana'],
+    'mediterranea': ['hummus', 'tabulé', 'moussaka', 'pescado al horno con verduras', 'ratatouille', 'falafel', 'ensalada griega'],
+    'italiana': ['pasta carbonara', 'risotto', 'lasaña', 'pizza casera', 'gnocchi', 'ossobuco', 'minestrone', 'bruschetta', 'panna cotta'],
+    'francesa': ['quiche lorraine', 'ratatouille', 'croque-monsieur', 'sopa de cebolla', 'crepes', 'pollo al vino', 'gratin dauphinois'],
+    'griega': ['musaka', 'souvlaki', 'ensalada griega', 'spanakopita', 'gyros', 'tzatziki con pan pita', 'fasolada'],
+    'portuguesa': ['bacalhau a bras', 'caldo verde', 'francesinha', 'arroz de marisco', 'pasteis de nata', 'sardinhas assadas'],
+    'mexicana': ['tacos', 'burritos', 'enchiladas', 'guacamole', 'quesadillas', 'pozole', 'chili con carne', 'elote', 'fajitas'],
+    'peruana': ['ceviche', 'lomo saltado', 'aji de gallina', 'arroz chaufa', 'causa limena', 'papa a la huancaina'],
+    'argentina': ['empanadas', 'milanesa', 'asado', 'choripan', 'locro', 'provoleta', 'dulce de leche'],
+    'tex-mex': ['nachos con queso', 'burritos', 'chili con carne', 'fajitas', 'quesadillas', 'tacos crujientes'],
+    'china': ['arroz frito', 'chow mein', 'pollo agridulce', 'rollitos de primavera', 'tofu salteado', 'sopa wonton', 'dim sum'],
+    'japonesa': ['sushi casero', 'ramen', 'gyozas', 'teriyaki de pollo', 'edamame', 'katsu curry', 'miso soup', 'onigiri'],
+    'tailandesa': ['pad thai', 'curry verde', 'tom yum', 'arroz con mango', 'satay de pollo', 'som tam', 'curry masaman'],
+    'india': ['pollo tikka masala', 'dal de lentejas', 'naan casero', 'biryani', 'samosas', 'curry de garbanzos', 'raita'],
+    'coreana': ['bibimbap', 'kimchi', 'bulgogi', 'japchae', 'tteokbokki', 'kimbap', 'sundubu jjigae'],
+    'arabe y marroqui': ['cuscus', 'tajine', 'falafel', 'shawarma', 'harira', 'pastela', 'tabulé', 'hummus'],
+    'fusion': ['taco de salmon teriyaki', 'pizza naan', 'burrito de pollo tikka', 'bowl mediterraneo', 'gyoza de cocido'],
+    'variada internacional': ['curry', 'tacos', 'pasta', 'stir-fry', 'bowl de arroz', 'falafel', 'empanadas'],
+};
+
+const sugerenciasPorTipo = {
+    '': [],
+    'sopas y cremas': ['crema de calabaza', 'sopa de pollo', 'crema de puerros', 'sopa de tomate', 'crema de champiñones', 'sopa minestrone'],
+    'platos de cuchara': ['lentejas estofadas', 'fabada', 'potaje de garbanzos', 'judias con chorizo', 'guiso de patatas', 'estofado de ternera'],
+    'estofados y cocidos': ['cocido completo', 'estofado de pollo', 'rabo de toro', 'callos', 'carrilleras al vino'],
+    'al horno': ['pollo asado', 'lasaña', 'merluza al horno', 'verduras asadas', 'canelones', 'gratinado de patatas'],
+    'a la plancha': ['pechuga de pollo', 'salmon a la plancha', 'verduras a la plancha', 'hamburguesa casera', 'secreto iberico'],
+    'salteados rapidos': ['wok de verduras', 'pollo salteado', 'arroz frito', 'noodles', 'revuelto de setas', 'salteado de tofu'],
+    'arroces y paellas': ['paella mixta', 'arroz caldoso', 'arroz negro', 'arroz con pollo', 'arroz a banda', 'risotto de setas'],
+    'pastas': ['espaguetis bolonesa', 'macarrones con queso', 'carbonara', 'penne al pesto', 'pasta al ajillo', 'pasta primavera'],
+    'ensaladas': ['cesar', 'ensalada de quinoa', 'ensalada caprese', 'poke bowl', 'ensalada de pasta fria', 'ensalada de garbanzos'],
+    'wraps y bocadillos': ['wrap de pollo', 'sandwich club', 'pita con falafel', 'bocadillo de tortilla', 'wrap cesar', 'tosta de aguacate'],
+    'platos frios y gazpachos': ['gazpacho', 'salmorejo', 'vichyssoise', 'carpaccio', 'salpicon', 'ensaladilla rusa'],
+    'batch cooking': ['chili para toda la semana', 'bolonesa en cantidad', 'pollo desmenuzado', 'base de verduras', 'arroz y legumbres'],
+    'sin horno ni fuegos': ['ensalada completa', 'hummus con crudites', 'poke bowl', 'gazpacho', 'wraps frios', 'tostadas variadas'],
+    'recetas de 3 ingredientes': ['tortilla francesa', 'tostada con tomate', 'platano con avena', 'yogur con fruta', 'huevos cocidos con sal'],
+    'meal prep fitness': ['pechuga y arroz', 'bowl de proteinas', 'batido de avena', 'ensalada de atun', 'wrap de pavo', 'quinoa con verduras'],
+};
+
+function actualizarSugerencias() {
+    const estilo = document.getElementById('estilo_cocina').value;
+    const tipos = getTiposSeleccionados();
+    const container = document.getElementById('sugerencias');
+    const input = document.getElementById('antojo_hoy');
+
+    // Combinar sugerencias de estilo + todos los tipos seleccionados
+    const deEstilo = sugerenciasPorEstilo[estilo] || sugerenciasPorEstilo[''];
+    let deTipo = [];
+    tipos.forEach(t => { deTipo = deTipo.concat(sugerenciasPorTipo[t] || []); });
+    const todas = [...new Set([...deTipo, ...deEstilo])];
+
+    // Mostrar max 8 sugerencias, aleatorias
+    const shuffled = todas.sort(() => 0.5 - Math.random()).slice(0, 8);
+
+    container.innerHTML = '';
+    if (shuffled.length > 0) {
+        const label = document.createElement('span');
+        label.className = 'sugerencias-label';
+        label.textContent = 'Sugerencias - haz clic para añadir:';
+        container.appendChild(label);
+
+        shuffled.forEach(sug => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.textContent = sug;
+            chip.addEventListener('click', () => {
+                const current = input.value.trim();
+                // Toggle: si ya esta, quitarlo
+                if (current.split(', ').map(s => s.trim()).includes(sug)) {
+                    input.value = current.split(', ').filter(s => s.trim() !== sug).join(', ');
+                    chip.classList.remove('selected');
+                } else {
+                    input.value = current ? current + ', ' + sug : sug;
+                    chip.classList.add('selected');
+                }
+            });
+            container.appendChild(chip);
+        });
+    }
+}
+
+// ── Chips multiseleccion para tipo de platos ──
+document.querySelectorAll('#tipo_platos_chips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        actualizarSugerencias();
+    });
+});
+
+function getTiposSeleccionados() {
+    const chips = document.querySelectorAll('#tipo_platos_chips .chip.selected');
+    return Array.from(chips).map(c => c.dataset.value);
+}
+
+document.getElementById('estilo_cocina').addEventListener('change', actualizarSugerencias);
+
+// Mostrar sugerencias iniciales al cargar
+actualizarSugerencias();
+
+document.getElementById('menuForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn = document.getElementById('btnGenerar');
+    const loader = document.getElementById('loader');
+    const resultado = document.getElementById('resultado');
+
+    // Recoger datos
+    const data = {
+        personas: document.getElementById('personas').value,
+        presupuesto: document.getElementById('presupuesto').value,
+        preferencias: document.getElementById('preferencias').value,
+        alergias: document.getElementById('alergias').value,
+        objetivo: document.getElementById('objetivo').value,
+        tiempo_cocina: document.getElementById('tiempo_cocina').value,
+        ingredientes_evitar: document.getElementById('ingredientes_evitar').value,
+        estilo_cocina: document.getElementById('estilo_cocina').value,
+        antojo_hoy: document.getElementById('antojo_hoy').value,
+        tipo_platos: getTiposSeleccionados().join(', ') || 'variado',
+    };
+
+    // Validar
+    if (!data.presupuesto || data.presupuesto <= 0) {
+        alert('Introduce un presupuesto valido.');
+        return;
+    }
+
+    // UI: loading
+    btn.disabled = true;
+    loader.classList.add('active');
+    resultado.classList.remove('active');
+    resultado.innerHTML = '';
+
+    const menu = generarMenuLocal(data.estilo_cocina, parseFloat(data.presupuesto), parseInt(data.personas));
+        renderMenu(menu, parseFloat(data.presupuesto));
+        btn.disabled = false;
+        loader.classList.remove('active');
+});
+
+function renderMenu(menu, presupuesto) {
+    const res = document.getElementById('resultado');
+    let html = '';
+
+    // Aviso
+    if (menu.aviso) {
+        html += `<div class="aviso-box">${menu.aviso}</div>`;
+    }
+
+    // Nivel de presupuesto
+    const nivel = menu.nivel || 'medio';
+    const nivelLabel = ETIQUETAS_NIVEL[nivel] || nivel;
+    const nivelColor = COLORES_NIVEL[nivel] || '#d4873a';
+    html += `<div style="text-align:center;margin-bottom:16px">
+      <span style="display:inline-block;padding:6px 20px;border-radius:20px;font-weight:700;font-size:0.95rem;background:rgba(0,0,0,0.25);border:1.5px solid ${nivelColor};color:${nivelColor};letter-spacing:0.5px">
+        Menu ${nivelLabel}
+      </span>
+      <div style="margin-top:6px;font-size:0.82rem;color:#8a7060">${nivel==='bajo'?'Menos de 15 &euro;/persona/semana':nivel==='alto'?'M&aacute;s de 45 &euro;/persona/semana':'Entre 15 y 45 &euro;/persona/semana'}</div>
+    </div>`;
+
+    // Summary
+    const ahorro = presupuesto - menu.coste_total;
+    html += `<div class="card"><h2>Resumen</h2><div class="summary">`;
+    html += `<div class="summary-item"><div class="value">${menu.coste_total.toFixed(2)}&euro;</div><div class="label-text">Coste total</div></div>`;
+    html += `<div class="summary-item"><div class="value">${presupuesto.toFixed(2)}&euro;</div><div class="label-text">Presupuesto</div></div>`;
+    html += `<div class="summary-item"><div class="value" style="${ahorro < 0 ? '-webkit-text-fill-color:#f44336' : ''}">${ahorro >= 0 ? '+' : ''}${ahorro.toFixed(2)}&euro;</div><div class="label-text">${ahorro >= 0 ? 'Ahorro' : 'Exceso'}</div></div>`;
+    html += `</div></div>`;
+
+    // Dias
+    html += `<div class="card"><h2>Menu Semanal</h2>`;
+
+    for (const dia of menu.dias) {
+        html += `<div class="dia-card">`;
+        html += `<div class="dia-header"><h3>${dia.dia}</h3><span class="dia-coste">${dia.coste_estimado.toFixed(2)}&euro;</span></div>`;
+
+        html += renderPlato('Primer plato', dia.primer_plato);
+        html += renderPlato('Segundo plato', dia.segundo_plato);
+        html += renderPlato('Postre', dia.postre);
+
+        html += `</div>`;
+    }
+    html += `</div>`;
+
+    // Consejo
+    if (menu.consejo_nutricional) {
+        html += `<div class="consejo">${menu.consejo_nutricional}</div>`;
+    }
+
+    res.innerHTML = html;
+    res.classList.add('active');
+    res.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderPlato(tipo, plato) {
+    return `<div class="plato">
+        <div class="plato-tipo">${tipo}</div>
+        <div class="plato-nombre">${plato.nombre}</div>
+        <div class="plato-ingredientes">${plato.ingredientes_principales.join(', ')}</div>
+    </div>`;
+}
+</script>
+
+</body>
+</html>
